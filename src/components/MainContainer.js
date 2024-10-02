@@ -5,13 +5,15 @@ import { createChart } from 'lightweight-charts';
 import './MainContainer.css'
 
 function MainComponent() {
-  const [symbol, setSymbol] = useState('');
   const [topGainers, setTopGainers] = useState([]);
   const [topLosers, setTopLosers] = useState([]);
   const [mostActive, setMostActive] = useState([]);
   const [selectedSymbol, setSelectedSymbol] = useState('');
+  const [userQuery, setUserQuery] = useState('');
+  const [conversation, setConversation] = useState([]);
   const chartContainerRef = useRef();
   const textareaRef = useRef(null);
+  const chatWindowRef = useRef(null);
 
   // Fetch top gainers, losers, and most active on component mount
   useEffect(() => {
@@ -110,19 +112,73 @@ function MainComponent() {
     }
   }, [selectedSymbol]);
 
+  useEffect(() => {
+    if (chatWindowRef.current) {
+      chatWindowRef.current.scrollTop = chatWindowRef.current.scrollHeight;
+    }
+  }, [conversation]);
+
   const handleStockClick = (symbol) => {
     setSelectedSymbol(symbol);
   };
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    if (symbol.trim() !== '') {
-      setSelectedSymbol(symbol.trim().toUpperCase());
+    if (userQuery.trim() !== '') {
+      // Add user's message to the conversation
+      const newConversation = [...conversation, { sender: 'user', message: userQuery.trim() }];
+  
+      // Send POST request to the /query endpoint
+      fetch('http://127.0.0.1:5000/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: userQuery.trim() }),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          let assistantMessage = '';
+  
+          // Check if documents are present in the response
+          if (data.documents && data.documents.length > 0) {
+            // Loop through each array of documents
+            data.documents.forEach((docArray) => {
+              docArray.forEach((doc) => {
+                try {
+                  // Parse the JSON string in each document
+                  const parsedDoc = JSON.parse(doc);
+                  // Check if 'Meta Data' exists in the parsed document
+                  if (parsedDoc['Meta Data']) {
+                    const metaData = parsedDoc['Meta Data'];
+                    assistantMessage += `Information: ${metaData['1. Information']}\n`;
+                    assistantMessage += `Symbol: ${metaData['2. Symbol']}\n`;
+                    assistantMessage += `Last Refreshed: ${metaData['3. Last Refreshed']}\n`;
+                    assistantMessage += `Output Size: ${metaData['4. Output Size']}\n`;
+                    assistantMessage += `Time Zone: ${metaData['5. Time Zone']}\n\n`;
+                  }
+                } catch (e) {
+                  console.error('Error parsing document:', e);
+                }
+              });
+            });
+          } else {
+            assistantMessage = 'Sorry, I did not understand your question.';
+          }
+  
+          // Add assistant's message to the conversation
+          setConversation([...newConversation, { sender: 'assistant', message: assistantMessage }]);
+        })
+        .catch((error) => {
+          console.error('Error querying data:', error);
+          alert('Error querying data. Please try again later.');
+        });
+  
+      // Clear the input
+      setUserQuery('');
     }
   };
 
   const handleTextareaChange = (e) => {
-    setSymbol(e.target.value);
+    setUserQuery(e.target.value);
 
     // Reset height to auto to calculate scrollHeight correctly
     textareaRef.current.style.height = 'auto';
@@ -253,15 +309,25 @@ function MainComponent() {
           </table>
         </div>
       </div>
+
+      {/* Conversation Chat */}
+      <div className="chat-window" ref={chatWindowRef}>
+        {conversation.map((chat, index) => (
+          <div key={index} className={`chat-message ${chat.sender}`}>
+            <div className="message" style={{ whiteSpace: 'pre-wrap' }}>{chat.message}</div>
+          </div>
+        ))}
+      </div>
+
       {/* Search bar */}
       <form onSubmit={handleSubmit} className="search-form">
         <textarea
           ref={textareaRef}
-          value={symbol}
+          value={userQuery}
           onChange={handleTextareaChange}
           placeholder="Hey I'm your Financial Advisor feel free to ask me any questions you have... "
           rows="1"
-          style={{ resize: 'none', overflow: 'hidden', maxHeight: '120px' }}
+          style={{ resize: 'none', overflow: 'hidden', maxHeight: '120px', width: "100%" }}
         />
         <button type="submit" className="send-button">
           ➤

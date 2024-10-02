@@ -5,49 +5,78 @@
     font-family: Arial, sans-serif;
 }
 
-.search-form {
-    position: fixed;
-    bottom: 0;
-    width: 100%;
-    max-width: 1200px;
-    /* Adjust to your container's max width */
-    margin: 0 auto;
-    background-color: #ffffff;
+.chat-window {
+    max-height: 300px;
+    overflow-y: auto;
+    margin-bottom: 10px;
     padding: 10px;
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+}
+
+.chat-message {
+    display: flex;
+    margin-bottom: 10px;
+}
+
+.chat-message.user .message {
+    margin-left: auto;
+    background-color: #d1e7dd;
+    color: #0f5132;
+}
+
+.chat-message.assistant .message {
+    margin-right: auto;
+    background-color: #e2e3e5;
+    color: #41464b;
+}
+
+.message {
+    padding: 10px 15px;
+    border-radius: 20px;
+    max-width: 80%;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+}
+
+.chat-message.user .message {
+    border-bottom-right-radius: 0;
+}
+
+.chat-message.assistant .message {
+    border-bottom-left-radius: 0;
+}
+
+.search-form {
     display: flex;
     align-items: center;
-    border-top: 1px solid #e1e1e1;
+    margin-bottom: 20px;
 }
 
 .search-form textarea {
     flex: 1;
-    border: 1px solid #ddd;
-    border-radius: 20px;
-    padding: 10px 15px;
+    padding: 10px;
     font-size: 16px;
-    outline: none;
-    max-height: 120px;
-    /* 6 lines * 20px line-height */
-    overflow: auto;
-    line-height: 20px;
+    border-radius: 20px;
+    border: 1px solid #ccc;
+    margin-right: 10px;
 }
 
 .send-button {
-    margin-left: 10px;
-    background-color: #0084ff;
-    border: none;
-    border-radius: 50%;
-    padding: 10px;
+    background-color: #007bff;
     color: #fff;
-    cursor: pointer;
-    font-size: 18px;
-    width: 40px;
+    border: none;
+    padding: 0 15px;
     height: 40px;
+    border-radius: 20px;
+    cursor: pointer;
 }
 
 .send-button:hover {
-    background-color: #006bbf;
+    background-color: #0056b3;
 }
+
 
 .chart-container {
     margin-bottom: 20px;
