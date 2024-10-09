@@ -1,0 +1,111 @@
+.stock-details-container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    font-family: Arial, sans-serif;
+}
+
+h2 {
+    text-align: center;
+    margin-bottom: 20px;
+    font-size: 2rem;
+    color: #333;
+}
+
+.price-details {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.price-details p {
+    margin: 5px 0;
+    font-size: 1.2rem;
+}
+
+.positive-change {
+    color: green;
+}
+
+.negative-change {
+    color: red;
+}
+
+.chart-container {
+    width: 100%;
+    margin-bottom: 40px;
+    border: 1px solid #e1e1e1;
+}
+
+.company-overview,
+.financial-performance,
+.news-sentiments,
+.insider-transactions {
+    margin-bottom: 40px;
+}
+
+h3 {
+    font-size: 1.5rem;
+    margin-bottom: 15px;
+}
+
+.company-overview p,
+.financial-performance p,
+.news-sentiments p,
+.insider-transactions p {
+    margin-bottom: 10px;
+}
+
+.table-container {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+table th,
+table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+button {
+    margin: 10px 5px;
+    padding: 10px 20px;
+    background-color: #2196F3;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+}
+
+button:hover {
+    background-color: #1e88e5;
+}
+
+.news-list {
+    list-style: none;
+    padding: 0;
+}
+
+.news-list li {
+    margin-bottom: 15px;
+}
+
+.news-list a {
+    font-weight: bold;
+    color: #1e88e5;
+    text-decoration: none;
+}
+
+.news-list a:hover {
+    text-decoration: underline;
+}
+
+.sentiment-score {
+    color: #333;
+}

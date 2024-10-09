@@ -15,6 +15,8 @@ function MainComponent() {
   const textareaRef = useRef(null);
   const chatWindowRef = useRef(null);
 
+  const navigate = useNavigate();
+
   // Fetch top gainers, losers, and most active on component mount
   useEffect(() => {
     fetch('http://127.0.0.1:5000/stocks/top_movers')
@@ -119,7 +121,7 @@ function MainComponent() {
   }, [conversation]);
 
   const handleStockClick = (symbol) => {
-    setSelectedSymbol(symbol);
+    navigate(`/stocks/${symbol}`); // Navigate to StockDetails component
   };
 
   const handleSubmit = (event) => {
@@ -127,7 +129,7 @@ function MainComponent() {
     if (userQuery.trim() !== '') {
       // Add user's message to the conversation
       const newConversation = [...conversation, { sender: 'user', message: userQuery.trim() }];
-  
+
       // Send POST request to the /query endpoint
       fetch('http://127.0.0.1:5000/query', {
         method: 'POST',
@@ -137,7 +139,7 @@ function MainComponent() {
         .then((response) => response.json())
         .then((data) => {
           let assistantMessage = '';
-  
+
           // Check if documents are present in the response
           if (data.documents && data.documents.length > 0) {
             // Loop through each array of documents
@@ -163,7 +165,7 @@ function MainComponent() {
           } else {
             assistantMessage = 'Sorry, I did not understand your question.';
           }
-  
+
           // Add assistant's message to the conversation
           setConversation([...newConversation, { sender: 'assistant', message: assistantMessage }]);
         })
@@ -171,7 +173,7 @@ function MainComponent() {
           console.error('Error querying data:', error);
           alert('Error querying data. Please try again later.');
         });
-  
+
       // Clear the input
       setUserQuery('');
     }
