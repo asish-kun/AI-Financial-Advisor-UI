@@ -323,17 +323,19 @@ function MainComponent() {
 
       {/* Search bar */}
       <form onSubmit={handleSubmit} className="search-form">
-        <textarea
-          ref={textareaRef}
-          value={userQuery}
-          onChange={handleTextareaChange}
-          placeholder="Hey I'm your Financial Advisor feel free to ask me any questions you have... "
-          rows="1"
-          style={{ resize: 'none', overflow: 'hidden', maxHeight: '120px', width: "100%" }}
-        />
-        <button type="submit" className="send-button">
-          ➤
-        </button>
+        <div className="input-container">
+          <textarea
+            ref={textareaRef}
+            value={userQuery}
+            onChange={handleTextareaChange}
+            placeholder="Hey I'm your Financial Advisor, feel free to ask me any questions you have..."
+            rows="1"
+            style={{ resize: 'none', overflow: 'hidden', maxHeight: '120px', width: "100%" }}
+          />
+          <button type="submit" className="send-button">
+            ➤
+          </button>
+        </div>
       </form>
     </div>
   );

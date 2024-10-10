@@ -2,6 +2,8 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { createChart } from 'lightweight-charts';
 import './StockDetails.css'; // Import the CSS file
+import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
+import 'react-circular-progressbar/dist/styles.css';
 
 function StockDetails() {
   const { symbol } = useParams();
@@ -156,14 +158,31 @@ function StockDetails() {
       });
   }, [symbol, timeFrame]);
 
-  // Create chart
+  // Fetch news data
+  useEffect(() => {
+    fetch(`${BASE_URL}/stocks/news?symbol=${symbol}`)
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.feed && data.feed.length > 0) {
+          setNewsData(data.feed.slice(0, 5)); // Get top 5 news articles
+        } else {
+          setNewsData([]);
+        }
+      })
+      .catch((error) => {
+        console.error('Error fetching news data:', error);
+        alert('Error fetching news data. Please try again later.');
+      });
+  }, [symbol]);
+
+  // Adjusted chart creation to ensure responsive width and height
   useEffect(() => {
     if (stockData && chartContainerRef.current) {
       chartContainerRef.current.innerHTML = '';
 
       const chart = createChart(chartContainerRef.current, {
         width: chartContainerRef.current.clientWidth,
-        height: 400,
+        height: chartContainerRef.current.clientHeight,
         layout: {
           backgroundColor: '#ffffff',
           textColor: '#000000',
@@ -203,7 +222,10 @@ function StockDetails() {
 
       // Handle window resize
       const handleResize = () => {
-        chart.applyOptions({ width: chartContainerRef.current.clientWidth });
+        chart.applyOptions({
+          width: chartContainerRef.current.clientWidth,
+          height: chartContainerRef.current.clientHeight,
+        });
       };
 
       window.addEventListener('resize', handleResize);
@@ -216,59 +238,92 @@ function StockDetails() {
     }
   }, [stockData]);
 
+  // Mock scores for Buy/Sell (you can replace these with real data)
+  const buyScore = 76;
+  const sellScore = 24;
+
+  // Function to determine color based on score
+  const getScoreColor = (score) => {
+    if (score <= 33) return '#f44336'; // Red
+    if (score <= 66) return '#ffeb3b'; // Yellow
+    return '#4caf50'; // Green
+  };
+
   return (
     <div className="stock-details-container">
-      <h2>{symbol}</h2>
+      {/* Price and Score Section */}
+      <div className="price-and-score">
+        {/* Price Details */}
+        <div className="price-details">
+          {todayStats ? (
+            <>
+              <h2>{symbol}</h2>
+              <p>
+                Current Price: <strong>${todayStats.currentPrice.toFixed(2)}</strong>
+              </p>
+              <p>Open Price: ${todayStats.openPrice.toFixed(2)}</p>
+              <p>High Price: ${todayStats.highPrice.toFixed(2)}</p>
+              <p>Low Price: ${todayStats.lowPrice.toFixed(2)}</p>
+              <p>Previous Close: ${todayStats.previousClose.toFixed(2)}</p>
+              <p className={todayStats.change >= 0 ? 'positive-change' : 'negative-change'}>
+                Change: ${todayStats.change.toFixed(2)} ({todayStats.changePercent})
+              </p>
+            </>
+          ) : (
+            <p>Today's statistics are not available.</p>
+          )}
+        </div>
 
-      {/* Today's Stats */}
-      <div className="price-details">
-        {todayStats ? (
-          <>
-            <p>
-              Current Price: <strong>${todayStats.currentPrice.toFixed(2)}</strong>
-            </p>
-            <p>Open Price: ${todayStats.openPrice.toFixed(2)}</p>
-            <p>High Price: ${todayStats.highPrice.toFixed(2)}</p>
-            <p>Low Price: ${todayStats.lowPrice.toFixed(2)}</p>
-            <p>Previous Close: ${todayStats.previousClose.toFixed(2)}</p>
-            <p
-              className={
-                todayStats.change >= 0 ? 'positive-change' : 'negative-change'
-              }
-            >
-              Change: ${todayStats.change.toFixed(2)} ({todayStats.changePercent})
-            </p>
-          </>
+        {/* Buy/Sell Score Section */}
+        <div className="score-section">
+          <h3>Buy/Sell Score</h3>
+          <div className="score-charts">
+            <div className="score-chart">
+              <CircularProgressbar
+                value={buyScore}
+                text={`Buy ${buyScore}%`}
+                styles={buildStyles({
+                  pathColor: getScoreColor(buyScore),
+                  textColor: '#333',
+                  trailColor: '#ddd',
+                })}
+              />
+            </div>
+            <div className="score-chart">
+              <CircularProgressbar
+                value={sellScore}
+                text={`Sell ${sellScore}%`}
+                styles={buildStyles({
+                  pathColor: getScoreColor(sellScore),
+                  textColor: '#333',
+                  trailColor: '#ddd',
+                })}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Chart and Company Overview */}
+      <div className="chart-and-overview">
+        <div className="chart-container" ref={chartContainerRef}></div>
+        {companyOverview ? (
+          <div className="company-overview">
+            <h3>About {companyOverview.Name}</h3>
+            <img
+              src={companyOverview.logoUrl}
+              alt={`${companyOverview.Name} logo`}
+              className="company-logo"
+            />
+            <p>{companyOverview.Description}</p>
+            <p>Industry: {companyOverview.Industry}</p>
+            <p>Market Cap: ${Number(companyOverview.MarketCapitalization).toLocaleString()}</p>
+            <p>P/E Ratio: {companyOverview.PERatio}</p>
+          </div>
         ) : (
-          <p>Today's statistics are not available.</p>
+          <p>Company overview is not available.</p>
         )}
       </div>
-
-      {/* Time Frame Buttons */}
-      <div>
-        <button onClick={() => setTimeFrame('daily')}>Daily</button>
-        <button onClick={() => setTimeFrame('weekly')}>Weekly</button>
-        <button onClick={() => setTimeFrame('monthly')}>Monthly</button>
-      </div>
-
-      {/* Chart */}
-      <div ref={chartContainerRef} className="chart-container"></div>
-
-      {/* Company Overview */}
-      {companyOverview ? (
-        <div className="company-overview">
-          <h3>About {companyOverview.Name}</h3>
-          <p>{companyOverview.Description}</p>
-          <p>Industry: {companyOverview.Industry}</p>
-          <p>
-            Market Cap: $
-            {Number(companyOverview.MarketCapitalization).toLocaleString()}
-          </p>
-          <p>P/E Ratio: {companyOverview.PERatio}</p>
-        </div>
-      ) : (
-        <p>Company overview is not available.</p>
-      )}
 
       {/* Financial Performance */}
       {financialData ? (
@@ -301,19 +356,18 @@ function StockDetails() {
         <p>Financial data is not available.</p>
       )}
 
-      {/* News & Sentiments */}
+      {/* News Information Section */}
       {newsData.length > 0 ? (
-        <div className="news-sentiments">
-          <h3>Latest News & Sentiments</h3>
-          <ul className="news-list">
-            {newsData.map((news, index) => (
+        <div className="news-section">
+          <h3>Latest News</h3>
+          <ul>
+            {newsData.map((newsItem, index) => (
               <li key={index}>
-                <a href={news.url} target="_blank" rel="noopener noreferrer">
-                  {news.title}
+                <a href={newsItem.url} target="_blank" rel="noopener noreferrer">
+                  {newsItem.title}
                 </a>
-                <p className="sentiment-score">
-                  Sentiment Score: {news.overall_sentiment_score.toFixed(2)}
-                </p>
+                <p>{newsItem.summary}</p>
+                <p><small>{new Date(newsItem.publishedDate).toLocaleString()}</small></p>
               </li>
             ))}
           </ul>
