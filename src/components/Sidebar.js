@@ -6,9 +6,7 @@ import { Home, PieChart, BarChart2, User } from 'lucide-react';
 const Sidebar = () => {
     return (
         <div className="sidebar h-screen w-64 bg-[#1f2a37] text-white flex flex-col">
-            <div className="sidebar-header p-6 font-bold text-xl">
-                AI Stock Advisor
-            </div>
+
             <nav className="flex-1 space-y-2">
                 <SidebarItem to="/advisor" icon={<Home className="w-6 h-6" />} label="Advisor" />
                 <SidebarItem to="/portfolio" icon={<PieChart className="w-6 h-6" />} label="Portfolio" />

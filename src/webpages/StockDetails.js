@@ -1,9 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { createChart } from 'lightweight-charts';
 import './StockDetails.css'; // Import the CSS file
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
+import { ReactComponent as AddToPortfolioIcon } from '../assets/add-to-portfolio.svg';
+import AddToPortfolioDialog from '../components/AddToPortfolioDialog'; // Import the dialog component
 
 function StockDetails() {
   const { symbol } = useParams();
@@ -15,6 +17,18 @@ function StockDetails() {
   const [insiderTransactions, setInsiderTransactions] = useState([]);
   const [timeFrame, setTimeFrame] = useState('daily');
   const chartContainerRef = useRef();
+  const [lastWeekData, setLastWeekData] = useState(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const elementRef = useRef(null);
+  const navigate = useNavigate();
+
+  const openDialog = () => {
+    setIsDialogOpen(true);
+  };
+
+  const closeDialog = () => {
+    setIsDialogOpen(false);
+  };
 
   const BASE_URL = 'http://127.0.0.1:5000'; // Update the URL if necessary
 
@@ -43,6 +57,15 @@ function StockDetails() {
         alert('Error fetching data. Please try again later.');
       });
   }, [symbol]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (elementRef.current) {
+        const width = elementRef.current.clientWidth;
+        // rest of your code
+      }
+    }
+  }, [elementRef]);
 
   // Fetch company overview
   useEffect(() => {
@@ -158,6 +181,35 @@ function StockDetails() {
       });
   }, [symbol, timeFrame]);
 
+  // Fetch time series data for last week
+  useEffect(() => {
+    fetch(`${BASE_URL}/stocks/time_series?symbol=${symbol}&function=TIME_SERIES_DAILY`)
+      .then((response) => response.json())
+      .then((data) => {
+        const timeSeriesKey = 'Time Series (Daily)';
+        if (data[timeSeriesKey]) {
+          const timeSeries = data[timeSeriesKey];
+          const dates = Object.keys(timeSeries).sort().slice(-7); // Get the last 7 days
+          const processedData = dates.map((date) => ({
+            date: date,
+            open: parseFloat(timeSeries[date]['1. open']),
+            high: parseFloat(timeSeries[date]['2. high']),
+            low: parseFloat(timeSeries[date]['3. low']),
+            close: parseFloat(timeSeries[date]['4. close']),
+            volume: parseInt(timeSeries[date]['5. volume'], 10),
+          }));
+          setLastWeekData(processedData);
+        } else {
+          alert('No data found for this stock.');
+          setLastWeekData(null);
+        }
+      })
+      .catch((error) => {
+        console.error('Error fetching last week stock data:', error);
+        alert('Error fetching data. Please try again later.');
+      });
+  }, [symbol]);
+
   // Fetch news data
   useEffect(() => {
     fetch(`${BASE_URL}/stocks/news?symbol=${symbol}`)
@@ -178,11 +230,11 @@ function StockDetails() {
   // Adjusted chart creation to ensure responsive width and height
   useEffect(() => {
     if (stockData && chartContainerRef.current) {
-      chartContainerRef.current.innerHTML = '';
+      chartContainerRef.current.innerHTML = ''; // Clear previous chart
 
       const chart = createChart(chartContainerRef.current, {
-        width: chartContainerRef.current.clientWidth,
-        height: chartContainerRef.current.clientHeight,
+        width: chartContainerRef.current.clientWidth, // Responsive width
+        height: 400, // Responsive height
         layout: {
           backgroundColor: '#ffffff',
           textColor: '#000000',
@@ -302,6 +354,26 @@ function StockDetails() {
             </div>
           </div>
         </div>
+
+        {/* Add to Portfolio Button */}
+        <button className="add-to-portfolio-button" onClick={openDialog}>
+          <AddToPortfolioIcon />
+          Add to Portfolio
+        </button>
+
+        {/* AddToPortfolioDialog Component and sending required Data from api data collected in this screen */}
+        {isDialogOpen && (
+          <AddToPortfolioDialog
+            symbol={symbol}
+            currentPrice={todayStats ? todayStats.currentPrice : 0}
+            lastWeekData={lastWeekData}
+            companyOverview={companyOverview}
+            financialData={financialData}
+            newsData={newsData}
+            onClose={closeDialog}
+          />
+        )}
+
       </div>
 
       {/* Chart and Company Overview */}

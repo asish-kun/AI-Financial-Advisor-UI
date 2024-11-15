@@ -86,11 +86,13 @@ a:hover {
 
 .chart-container {
     flex: 1;
-    min-width: 300px;
     background-color: #fff;
     border-radius: 10px;
     padding: 20px;
-    height: 400px;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 .company-overview {
@@ -173,6 +175,26 @@ th {
     margin-top: 10px;
 }
 
+.chart-type-buttons {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.chart-type-buttons button {
+    padding: 8px 12px;
+    border: none;
+    cursor: pointer;
+    background-color: #2196f3;
+    color: white;
+    border-radius: 4px;
+}
+
+.chart-type-buttons button:hover {
+    background-color: #1976d2;
+}
+
+
 /* Media Queries */
 @media (max-width: 768px) {
     .price-and-score {
@@ -200,5 +222,23 @@ th {
 
     .score-chart {
         margin-bottom: 20px;
+    }
+
+    .add-to-portfolio-button {
+        display: flex;
+        align-items: center;
+        background-color: #2196F3;
+        color: #fff;
+        padding: 10px 15px;
+        border: none;
+        cursor: pointer;
+        margin: 15px 0;
+        border-radius: 4px;
+    }
+
+    .add-to-portfolio-button img {
+        width: 20px;
+        height: 20px;
+        margin-right: 10px;
     }
 }
