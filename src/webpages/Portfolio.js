@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader } from '../components/ui/Card';
+import { useNavigate } from 'react-router-dom';
 import {
   Select,
   SelectItem,
@@ -29,11 +30,161 @@ const Portfolio = () => {
   const [conversation, setConversation] = useState([]);
   const [isChatExpanded, setIsChatExpanded] = useState(false);
   const [selectedGraph, setSelectedGraph] = useState("total-value");
+  const [userDetails, setUserDetails] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [monthlyPortfolioData, setMonthlyPortfolioData] = useState([]);
+  const [loadingCurrentPrices, setLoadingCurrentPrices] = useState(true);
+  const [loadingGraphData, setLoadingGraphData] = useState(true);
+  const navigate = useNavigate();
+
+  const Spinner = () => (
+    <div className="spinner">
+      <div className="double-bounce1"></div>
+      <div className="double-bounce2"></div>
+    </div>
+  );
+
+  const API_KEY = '9ZQUXAH9JOQRSQDV';
+  const BASE_URL = 'http://127.0.0.1:5000';
+
+  // Fetch User Details
+  const fetchUserDetails = async () => {
+    const email = localStorage.getItem('email');
+    if (!email) {
+      alert('No user email found. Redirecting to login.');
+      navigate('/login');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await fetch(`http://127.0.0.1:5000/user-details/${encodeURIComponent(email)}`, {
+        method: 'GET',
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUserDetails(data);
+        setPortfolioStocks(data.portfolio || []); // Ensure portfolio is updated here
+        localStorage.setItem('userDetails', JSON.stringify(data)); // Update local storage
+      } else {
+        alert('Failed to fetch user details. Redirecting to login.');
+        navigate('/login');
+      }
+    } catch (error) {
+      console.error('Error fetching user details:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const storedPortfolio = JSON.parse(localStorage.getItem('portfolio')) || [];
-    setPortfolioStocks(storedPortfolio);
+    const cachedUserDetails = localStorage.getItem('userDetails');
+    if (cachedUserDetails) {
+      setUserDetails(JSON.parse(cachedUserDetails));
+      setLoading(false);
+    }
+    fetchUserDetails();
   }, []);
+
+  useEffect(() => {
+    if (userDetails && userDetails.portfolio) {
+      setPortfolioStocks(userDetails.portfolio);
+    }
+  }, [userDetails]);
+
+
+
+  // Fetching Monthly Over view Data
+  useEffect(() => {
+    const fetchMonthlyData = async () => {
+      setLoadingGraphData(true);
+      try {
+        const monthlyDataPromises = portfolioStocks.map(async (stock) => {
+          const cachedData = JSON.parse(localStorage.getItem(`monthlyData_${stock.symbol}`));
+
+          if (cachedData) {
+            return cachedData;
+          }
+
+          const response = await fetch(
+            `https://www.alphavantage.co/query?function=TIME_SERIES_MONTHLY&symbol=${stock.symbol}&apikey=${API_KEY}`
+          );
+          const data = await response.json();
+          const timeSeries = data['Monthly Time Series'];
+          if (timeSeries) {
+            const dates = Object.keys(timeSeries).sort().slice(-30); // Last 30 days
+            const processedData = dates.map((date) => ({
+              date,
+              value: parseFloat(timeSeries[date]['4. close']) * stock.shares,
+            }));
+
+            localStorage.setItem(`monthlyData_${stock.symbol}`, JSON.stringify(processedData)); // Save to localStorage
+            return processedData;
+          }
+          return [];
+        });
+
+        const resolvedMonthlyData = await Promise.all(monthlyDataPromises);
+        const aggregatedData = resolvedMonthlyData.flat().reduce((acc, current) => {
+          const existing = acc.find((item) => item.date === current.date);
+          if (existing) {
+            existing.value += current.value;
+          } else {
+            acc.push({ ...current });
+          }
+          return acc;
+        }, []);
+
+        aggregatedData.sort((a, b) => new Date(a.date) - new Date(b.date)); // Sort by date
+        setMonthlyPortfolioData(aggregatedData);
+      } catch (error) {
+        console.error('Error fetching monthly graph data:', error);
+      } finally {
+        setLoadingGraphData(false);
+      }
+    };
+
+    if (portfolioStocks.length > 0) fetchMonthlyData();
+  }, [portfolioStocks]);
+
+  // useEffect(() => {
+  //   const fetchStockPrices = async () => {
+  //     setLoadingCurrentPrices(true);
+  //     try {
+  //       const updatedStocks = await Promise.all(
+  //         portfolioStocks.map(async (stock) => {
+  //           const response = await fetch(`${BASE_URL}/stocks/quote?symbol=${stock.symbol}`);
+  //           const data = await response.json();
+  //           if (data['Global Quote']) {
+  //             const quoteData = data['Global Quote'];
+  //             const currentPrice = parseFloat(quoteData['05. price']) || stock.currentPrice;
+  //             const changePercent = quoteData['10. change percent']
+  //               ? parseFloat(quoteData['10. change percent'].replace('%', ''))
+  //               : 0;
+
+  //             return {
+  //               ...stock,
+  //               currentPrice,
+  //               priceChangePercent: changePercent,
+  //             };
+  //           }
+  //           return { ...stock, currentPrice: stock.currentPrice, priceChangePercent: 0 };
+  //         })
+  //       );
+  //       setPortfolioStocks(updatedStocks);
+  //     } catch (error) {
+  //       console.error('Error fetching stock prices:', error);
+  //       alert('Error fetching stock prices. Please try again later.');
+  //     } finally {
+  //       setLoadingCurrentPrices(false);
+  //     }
+  //   };
+
+  //   if (portfolioStocks.length > 0) {
+  //     fetchStockPrices();
+  //   }
+  // }, [portfolioStocks]);
 
   useEffect(() => {
     if (portfolioStocks.length > 0) {
@@ -114,81 +265,75 @@ const Portfolio = () => {
 
   const graphs = {
     "total-value": {
-      title: "Total Portfolio Value Over Last Week",
-      component: (
+      title: "Total Portfolio Value Over Last Month",
+      component: loadingGraphData ? (
+        <Spinner />
+      ) : (
         <ResponsiveContainer width="100%" height={300}>
           <LineChart
-            data={portfolioHistory}
+            data={monthlyPortfolioData}
             margin={{ top: 20, right: 30, bottom: 20, left: 20 }}
           >
             <XAxis dataKey="date" />
-            <YAxis
-              tickFormatter={(value) => `$${parseFloat(value).toLocaleString()}`}
-            />
-            <Tooltip
-              formatter={(value) => [`$${parseFloat(value).toLocaleString()}`, 'Total Portfolio Value']}
-              domain={['auto', 'auto']}
-            />
-            <Line type="monotone" dataKey="portfolioValue" stroke="#8884d8" />
+            <YAxis tickFormatter={(value) => `$${parseFloat(value).toLocaleString()}`} />
+            <Tooltip formatter={(value) => `$${parseFloat(value).toLocaleString()}`} />
+            <Line type="monotone" dataKey="value" stroke="#8884d8" />
           </LineChart>
         </ResponsiveContainer>
-      )
+      ),
     },
     "percentage-change": {
-      title: "Total Portfolio Percentage Change Over Last Week",
-      component: (
+      title: "Total Portfolio Percentage Change Over Last Month",
+      component: loadingGraphData ? (
+        <Spinner />
+      ) : (
         <ResponsiveContainer width="100%" height={300}>
           <LineChart
-            data={portfolioHistory}
+            data={monthlyPortfolioData.map((entry, index, arr) => {
+              if (index === 0) return { ...entry, percentChange: 0 };
+              const prevValue = arr[index - 1].value;
+              const percentChange = ((entry.value - prevValue) / prevValue) * 100;
+              return { ...entry, percentChange };
+            })}
             margin={{ top: 20, right: 30, bottom: 20, left: 20 }}
           >
-            <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="date" />
-            <YAxis
-              tickFormatter={(value) => `${value}%`}
-              domain={['auto', 'auto']}
-            />
-            <Tooltip
-              formatter={(value) => [`${value}%`, 'Total Portfolio % Change']}
-            />
-            <Line
-              type="monotone"
-              dataKey="portfolioPercentChange"
-              stroke="#82ca9d"
-            />
+            <YAxis tickFormatter={(value) => `${value}%`} domain={['auto', 'auto']} />
+            <Tooltip formatter={(value) => `${value.toFixed(2)}%`} />
+            <Line type="monotone" dataKey="percentChange" stroke="#82ca9d" />
           </LineChart>
         </ResponsiveContainer>
-      )
+      ),
     },
     "individual-stocks": {
-      title: "Stock Performance Over Last Week (%)",
-      component: (
+      title: "Individual Stock Performance Over Last Month",
+      component: loadingGraphData ? (
+        <Spinner />
+      ) : (
         <ResponsiveContainer width="100%" height={300}>
           <LineChart
-            data={portfolioHistory}
+            data={monthlyPortfolioData}
             margin={{ top: 20, right: 30, bottom: 20, left: 20 }}
           >
-            <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="date" />
-            <YAxis
-              tickFormatter={(value) => `${value}%`}
-              domain={['auto', 'auto']}
-            />
-            <Tooltip
-              formatter={(value, name) => [`${value}%`, name]}
-            />
+            <YAxis tickFormatter={(value) => `$${parseFloat(value).toLocaleString()}`} />
+            <Tooltip formatter={(value, name) => [`$${parseFloat(value).toLocaleString()}`, name]} />
             {portfolioStocks.map((stock, index) => (
               <Line
                 key={stock.symbol}
                 type="monotone"
-                dataKey={stock.symbol}
+                dataKey={(data) =>
+                (data[stock.symbol] =
+                  (monthlyPortfolioData.find((entry) => entry.date === data.date)?.value /
+                    stock.shares) || 0)
+                }
                 stroke={COLORS[index % COLORS.length]}
               />
             ))}
           </LineChart>
         </ResponsiveContainer>
-      )
-    }
+      ),
+    },
   };
 
   function formatDate(dateString) {
@@ -274,7 +419,14 @@ const Portfolio = () => {
           </CardHeader>
           <CardContent>
             <div className="chart-container">
-              {graphs[selectedGraph].component}
+              {loadingGraphData ? (
+                <div className="loader-container">
+                  <Spinner />
+                  <p>Loading graph data...</p>
+                </div>
+              ) : (
+                graphs[selectedGraph].component
+              )}
             </div>
           </CardContent>
         </Card>
@@ -293,16 +445,18 @@ const Portfolio = () => {
                   ))}
                 </Pie>
                 <Tooltip
-                  formatter={(value, name) => [
-                    <div>
-                      <strong>{name}</strong><br />
-                      {`Holdings: ${pieData.find(d => d.name === name)?.holdings}`}
-                      <br />
-                      {`Value: $${parseFloat(value).toLocaleString()}`}
-                      <br />
-                      {'Performance: N/A'}
-                    </div>
-                  ]}
+                  formatter={(value, name) => {
+                    const stockData = pieData.find((d) => d.name === name);
+                    return stockData ? (
+                      <div>
+                        <strong>{name}</strong><br />
+                        {`Holdings: ${stockData.holdings}`}<br />
+                        {`Value: $${parseFloat(value).toLocaleString()}`}
+                      </div>
+                    ) : (
+                      <p>No data available</p>
+                    );
+                  }}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -339,10 +493,22 @@ const Portfolio = () => {
                         <td>{stock.companyOverview.Name}</td>
                         <td>{stock.shares}</td>
                         <td>{stock.dateOfPurchase}</td>
-                        <td className={stock.priceChangePercent >= 0 ? 'positive-change' : 'negative-change'}>
-                          {stock.priceChangePercent >= 0 ? '▲' : '▼'} {(stock.priceChangePercent ?? 0).toFixed(2)}%
+                        <td>
+                          {loadingCurrentPrices ? (
+                            <Spinner />
+                          ) : (
+                            <>
+                              {stock.priceChangePercent >= 0 ? '▲' : '▼'} {(stock.priceChangePercent ?? 0).toFixed(2)}%
+                            </>
+                          )}
                         </td>
-                        <td>${(stock.currentValue ?? 0).toFixed(2)}</td>
+                        <td>
+                          {loadingCurrentPrices ? (
+                            <Spinner />
+                          ) : (
+                            `$${(stock.currentValue ?? 0).toFixed(2)}`
+                          )}
+                        </td>
                         <td>{stock.predictedPrice ? `$${stock.predictedPrice.toFixed(2)}` : 'N/A'}</td>
                         <td>'N/A'</td>
                       </tr>

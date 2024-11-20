@@ -19,7 +19,7 @@ const SignupPage = () => {
         e.preventDefault();
         try {
             // Update to point to the correct backend port, e.g., 5000
-            const response = await fetch('http://localhost:5000/signup', {
+            const response = await fetch('http://127.0.0.1:5000/signup', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -32,6 +32,7 @@ const SignupPage = () => {
                     riskAppetite,
                     timeHorizon,
                 }),
+                credentials: 'include',
             });
 
             if (!response.ok) {
@@ -50,37 +51,82 @@ const SignupPage = () => {
     };
 
     return (
-        <form onSubmit={handleSignup}>
-            <h1>Sign Up</h1>
-            <input type="text" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} required />
-            <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-            <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-
-            <input type="text" placeholder="Gender" value={gender} onChange={(e) => setGender(e.target.value)} required />
-            <input type="number" placeholder="Age" value={age} onChange={(e) => setAge(e.target.value)} required />
-
-            <select value={investmentGoal} onChange={(e) => setInvestmentGoal(e.target.value)} required>
+        <form className="signup-form" onSubmit={handleSignup}>
+            <h1 className="signup-title">Sign Up</h1>
+            <input
+                className="signup-input"
+                type="text"
+                placeholder="Username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+            />
+            <input
+                className="signup-input"
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+            />
+            <input
+                className="signup-input"
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+            />
+            <input
+                className="signup-input"
+                type="text"
+                placeholder="Gender"
+                value={gender}
+                onChange={(e) => setGender(e.target.value)}
+                required
+            />
+            <input
+                className="signup-input"
+                type="number"
+                placeholder="Age"
+                value={age}
+                onChange={(e) => setAge(e.target.value)}
+                required
+            />
+            <select
+                className="signup-select"
+                value={investmentGoal}
+                onChange={(e) => setInvestmentGoal(e.target.value)}
+                required
+            >
                 <option value="">Primary Investment Goal</option>
                 <option value="capital_growth">Capital Growth</option>
                 <option value="income_generation">Income Generation</option>
                 <option value="capital_preservation">Capital Preservation</option>
             </select>
-
-            <select value={riskAppetite} onChange={(e) => setRiskAppetite(e.target.value)} required>
+            <select
+                className="signup-select"
+                value={riskAppetite}
+                onChange={(e) => setRiskAppetite(e.target.value)}
+                required
+            >
                 <option value="">Risk Appetite</option>
                 <option value="high">High</option>
                 <option value="medium">Medium</option>
                 <option value="low">Low</option>
             </select>
-
-            <select value={timeHorizon} onChange={(e) => setTimeHorizon(e.target.value)} required>
+            <select
+                className="signup-select"
+                value={timeHorizon}
+                onChange={(e) => setTimeHorizon(e.target.value)}
+                required
+            >
                 <option value="">Time Horizon</option>
                 <option value="short_term">Short-term (1-3 years)</option>
                 <option value="medium_term">Medium-term (3-7 years)</option>
                 <option value="long_term">Long-term (7+ years)</option>
             </select>
-
-            <button type="submit">Sign Up</button>
+            <button className="signup-button" type="submit">Sign Up</button>
         </form>
     );
 };

@@ -44,3 +44,31 @@ nav a.active {
 nav a span {
     margin-left: 1rem;
 }
+
+.logout-button {
+    padding: 1rem;
+    width: 85%;
+    display: flex;
+    align-self: center;
+    align-items: center;
+    /* Vertically align icon and label */
+    justify-content: flex-start;
+    /* Align content to the start of the button */
+    gap: 0.5rem;
+    /* Space between icon and label */
+    margin-bottom: 48px;
+    color: white;
+    /* Text color */
+    border-radius: 8px;
+    /* Rounded corners */
+    transition: background-color 0.2s;
+}
+
+.logout-button:hover {
+    background-color: #2a3140;
+}
+
+.logout-icon {
+    width: 1.5rem;
+    height: 1.5rem;
+}

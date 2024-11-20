@@ -1,4 +1,3 @@
-// src/components/TopBar.js
 import React, { useState, useEffect } from 'react';
 import { Search, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -8,13 +7,54 @@ const TopBar = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
+    const [userDetails, setUserDetails] = useState(null);
+    const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
     const API_KEY = '9ZQUXAH9JOQRSQDV';
 
-    const user = {
-        name: "John Doe",
-        email: "john.doe@example.com"
+    const fetchUserDetails = async () => {
+        const email = localStorage.getItem('email');
+        if (!email) {
+            alert('No user email found. Redirecting to login.');
+            navigate('/login');
+            return;
+        }
+
+        try {
+            const response = await fetch(`http://127.0.0.1:5000/user-details/${encodeURIComponent(email)}`, {
+                method: 'GET',
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                const cachedUserDetails = localStorage.getItem('userDetails');
+                // Compare the new data with the cached data
+                if (!cachedUserDetails || JSON.stringify(data) !== cachedUserDetails) {
+                    localStorage.setItem('userDetails', JSON.stringify(data)); // Update local storage
+                }
+                setUserDetails(data); // Update state with fetched data
+            } else {
+                alert('Failed to fetch user details. Redirecting to login.');
+                navigate('/login');
+            }
+        } catch (error) {
+            console.error('Error fetching user details:', error);
+        } finally {
+            setLoading(false); // Stop loading once the API call completes
+        }
     };
+
+    useEffect(() => {
+        // Check if cached user details are available
+        const cachedUserDetails = localStorage.getItem('userDetails');
+        if (cachedUserDetails) {
+            setUserDetails(JSON.parse(cachedUserDetails));
+            setLoading(false); // Display cached data immediately
+        }
+
+        // Fetch updated user details from the API
+        fetchUserDetails();
+    }, []);
 
     // Function to handle the API call for stock search
     const handleSearch = async (query) => {
@@ -25,7 +65,9 @@ const TopBar = () => {
 
         setIsSearching(true);
         try {
-            const response = await fetch(`https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords=${query}&apikey=${API_KEY}`);
+            const response = await fetch(
+                `https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords=${query}&apikey=${API_KEY}`
+            );
             const data = await response.json();
             if (data.bestMatches) {
                 setSearchResults(data.bestMatches);
@@ -100,8 +142,16 @@ const TopBar = () => {
             <div className="topbar-user-details">
                 <User className="user-icon" />
                 <div className="user-info">
-                    <div className="user-name">{user.name}</div>
-                    <div className="user-email">{user.email}</div>
+                    {loading ? (
+                        <div>Loading...</div>
+                    ) : userDetails ? (
+                        <>
+                            <div className="user-name">{userDetails.username}</div>
+                            <div className="user-email">{userDetails.email}</div>
+                        </>
+                    ) : (
+                        <div>Error fetching user details</div>
+                    )}
                 </div>
             </div>
         </div>

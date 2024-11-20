@@ -8,6 +8,7 @@ function AddToPortfolioDialog({ symbol, currentPrice, companyOverview, financial
     const [shares, setShares] = useState('');
     const [investmentType, setInvestmentType] = useState('Lifetime');
     const [showSuccess, setShowSuccess] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
     const navigate = useNavigate();
     const dialogRef = useRef(null);
     const isFormValid = amount > 0 && shares > 0;
@@ -64,9 +65,10 @@ function AddToPortfolioDialog({ symbol, currentPrice, companyOverview, financial
         navigate('/portfolio');
     };
 
-    const handleConfirm = () => {
+    const handleConfirm = async () => {
         if (amount > 0 && shares > 0) {
-            const existingPortfolio = JSON.parse(localStorage.getItem('portfolio')) || [];
+            setIsLoading(true); // Start loading
+            const email = localStorage.getItem('email');
 
             const newStock = {
                 symbol,
@@ -74,7 +76,7 @@ function AddToPortfolioDialog({ symbol, currentPrice, companyOverview, financial
                 shares: parseFloat(shares),
                 investmentType,
                 purchasePrice: currentPrice,
-                dateOfPurchase: new Date(),
+                dateOfPurchase: new Date().toISOString(),
                 predictedPrice: null, // Placeholder for predicted price
                 riskAssessment: null, // Placeholder for risk assessment
                 currentPrice,
@@ -84,10 +86,34 @@ function AddToPortfolioDialog({ symbol, currentPrice, companyOverview, financial
                 newsData,
             };
 
-            const updatedPortfolio = [...existingPortfolio, newStock];
-            localStorage.setItem('portfolio', JSON.stringify(updatedPortfolio));
+            try {
+                const response = await fetch(`http://127.0.0.1:5000/user/${encodeURIComponent(email)}/portfolio`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ stock: newStock }),
+                });
 
-            setShowSuccess(true);
+                if (response.ok) {
+                    const data = await response.json();
+
+                    // Update local user details
+                    const userDetails = JSON.parse(localStorage.getItem('userDetails')) || {};
+                    userDetails.portfolio = data.portfolio;
+                    localStorage.setItem('userDetails', JSON.stringify(userDetails));
+
+                    setShowSuccess(true);
+                } else {
+                    const errorData = await response.json();
+                    alert('Failed to add stock to portfolio: ' + errorData.message);
+                }
+            } catch (error) {
+                console.error('Error adding stock to portfolio:', error);
+                alert('An error occurred while adding stock to portfolio.');
+            } finally {
+                setIsLoading(false); // Stop loading
+            }
         }
     };
 
@@ -97,36 +123,50 @@ function AddToPortfolioDialog({ symbol, currentPrice, companyOverview, financial
                 {!showSuccess ? (
                     <>
                         <h2>Add {symbol} to Your Portfolio</h2>
-                        <div className="input-group">
-                            <label>Amount you want to invest:</label>
-                            <input
-                                type="number"
-                                value={amount}
-                                onChange={handleAmountChange}
-                                min="0"
-                                step="0.01"
-                            />
-                        </div>
-                        <div className="input-group">
-                            <label>Number of Stocks:</label>
-                            <input
-                                type="number"
-                                value={shares}
-                                onChange={handleSharesChange}
-                                min="0"
-                                step="0.0001"
-                            />
-                        </div>
-                        <div className="input-group">
-                            <label>Type of Investment:</label>
-                            <select value={investmentType} onChange={(e) => setInvestmentType(e.target.value)}>
-                                <option value="Lifetime">Lifetime</option>
-                                <option value="Short Term">Short Term</option>
-                            </select>
-                        </div>
-
-                        <button onClick={handleConfirm} className="confirm-button" disabled={!isFormValid}>
-                            Confirm
+                        {/* Show loading bar when loading */}
+                        {isLoading && (
+                            <div className="loading-bar">
+                                <div className="loading-bar-progress"></div>
+                            </div>
+                        )}
+                        {/* Hide form fields while loading */}
+                        {!isLoading && (
+                            <>
+                                <div className="input-group">
+                                    <label>Amount you want to invest:</label>
+                                    <input
+                                        type="number"
+                                        value={amount}
+                                        onChange={handleAmountChange}
+                                        min="0"
+                                        step="0.01"
+                                    />
+                                </div>
+                                <div className="input-group">
+                                    <label>Number of Stocks:</label>
+                                    <input
+                                        type="number"
+                                        value={shares}
+                                        onChange={handleSharesChange}
+                                        min="0"
+                                        step="0.0001"
+                                    />
+                                </div>
+                                <div className="input-group">
+                                    <label>Type of Investment:</label>
+                                    <select value={investmentType} onChange={(e) => setInvestmentType(e.target.value)}>
+                                        <option value="Lifetime">Lifetime</option>
+                                        <option value="Short Term">Short Term</option>
+                                    </select>
+                                </div>
+                            </>
+                        )}
+                        <button
+                            onClick={handleConfirm}
+                            className="confirm-button"
+                            disabled={!isFormValid || isLoading}
+                        >
+                            {isLoading ? 'Adding...' : 'Confirm'}
                         </button>
                     </>
                 ) : (
