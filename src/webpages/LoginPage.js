@@ -32,7 +32,7 @@ const LoginPage = () => {
         }
 
         try {
-            const response = await fetch('http://localhost:5000/login', {
+            const response = await fetch('http://127.0.0.1:5000/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password }),
@@ -41,8 +41,11 @@ const LoginPage = () => {
             if (response.ok) {
                 const data = await response.json();
                 alert(data.message || 'Login successful');
+
+                localStorage.setItem('email', email); // Save email to localStorage
                 login(); // Update authentication state
                 navigate('/advisor'); // Redirect to the dashboard
+
             } else if (response.status === 401) {
                 setErrorMessage('Incorrect email or password. Please try again.');
             } else if (response.status === 404) {

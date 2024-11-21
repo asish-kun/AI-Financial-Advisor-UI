@@ -1,20 +1,37 @@
-import React from 'react';
-import { NavLink } from 'react-router-dom';
+import React, { useContext } from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
 import './Sidebar.css';
-import { Home, PieChart, BarChart2, User } from 'lucide-react';
+import { Home, PieChart, BarChart2, User, LogOut } from 'lucide-react';
+import { AuthContext } from '../AuthContext';
 
 const Sidebar = () => {
+
+    const { logout } = useContext(AuthContext); // Access logout function
+    const navigate = useNavigate();
+
+    const handleLogout = async () => {
+        alert('Logged out successfully'); // Clear user details and set isAuthenticated to false
+        logout(); // Update authentication state
+        localStorage.removeItem('userDetails'); // Clear cached user details
+        localStorage.setItem('isAuthenticated', 'false'); // Update isAuthenticated to false
+        navigate('/');
+    };
+
     return (
         <div className="sidebar h-screen w-64 bg-[#1f2a37] text-white flex flex-col">
-            <div className="sidebar-header p-6 font-bold text-xl">
-                AI Stock Advisor
-            </div>
+
             <nav className="flex-1 space-y-2">
                 <SidebarItem to="/advisor" icon={<Home className="w-6 h-6" />} label="Advisor" />
                 <SidebarItem to="/portfolio" icon={<PieChart className="w-6 h-6" />} label="Portfolio" />
                 <SidebarItem to="/dashboard" icon={<BarChart2 className="w-6 h-6" />} label="Dashboard" />
                 <SidebarItem to="/account" icon={<User className="w-6 h-6" />} label="Account" />
             </nav>
+
+            <button onClick={handleLogout} className="logout-button">
+                <LogOut className="logout-icon" />
+                Logout
+            </button>
+
         </div>
     );
 };

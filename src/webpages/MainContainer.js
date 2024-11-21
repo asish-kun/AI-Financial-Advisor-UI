@@ -1,21 +1,40 @@
 // src/components/MainComponent.js
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { createChart } from 'lightweight-charts';
+import { ChevronDown, Send } from 'lucide-react';
 import './MainContainer.css'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faChevronUp, faChevronDown } from '@fortawesome/free-solid-svg-icons';
 
 function MainComponent() {
+  const { symbol } = useParams();
   const [topGainers, setTopGainers] = useState([]);
   const [topLosers, setTopLosers] = useState([]);
   const [mostActive, setMostActive] = useState([]);
   const [selectedSymbol, setSelectedSymbol] = useState('');
   const [userQuery, setUserQuery] = useState('');
   const [conversation, setConversation] = useState([]);
+  const [isChatExpanded, setIsChatExpanded] = useState(false);
+  const [dailyData, setDailyData] = useState([]);
+  const [weeklyData, setWeeklyData] = useState([]);
+  const [monthlyData, setMonthlyData] = useState([]);
+  const [error, setError] = useState(null);
   const chartContainerRef = useRef();
+  const chartRef = useRef(null);
   const textareaRef = useRef(null);
   const chatWindowRef = useRef(null);
+  const elementRef = useRef(null);
+  const resizeObserverRef = useRef(null);
 
   const navigate = useNavigate();
+
+  const API_KEY = '9ZQUXAH9JOQRSQDV';
+
+  useEffect(() => {
+    setSelectedSymbol(symbol);
+  }, [symbol]);
 
   // Fetch top gainers, losers, and most active on component mount
   useEffect(() => {
@@ -37,146 +56,197 @@ function MainComponent() {
       });
   }, []);
 
-  // Fetch and display the chart data for the selected symbol
+  // Fetch time-series data for daily, weekly, and monthly
   useEffect(() => {
     if (selectedSymbol) {
-      fetch(`http://127.0.0.1:5000/stocks/daily?symbol=${selectedSymbol}&outputsize=compact`)
-        .then((response) => response.json())
-        .then((data) => {
-          if (data['Time Series (Daily)']) {
-            const timeSeries = data['Time Series (Daily)'];
-            const dates = Object.keys(timeSeries).sort();
-            const chartData = dates.map((date) => ({
-              time: date,
-              value: parseFloat(timeSeries[date]['4. close']),
-            }));
-
-            // Create the chart
-            if (chartContainerRef.current) {
-              chartContainerRef.current.innerHTML = '';
-
-              const chart = createChart(chartContainerRef.current, {
-                width: chartContainerRef.current.clientWidth,
-                height: 400,
-                layout: {
-                  backgroundColor: '#ffffff',
-                  textColor: '#000000',
-                },
-                grid: {
-                  vertLines: {
-                    color: '#e1e1e1',
-                  },
-                  horzLines: {
-                    color: '#e1e1e1',
-                  },
-                },
-                crosshair: {
-                  mode: 1,
-                },
-                rightPriceScale: {
-                  borderColor: '#cccccc',
-                },
-                timeScale: {
-                  borderColor: '#cccccc',
-                  timeVisible: true,
-                  secondsVisible: false,
-                },
-              });
-
-              const lineSeries = chart.addLineSeries({
-                color: '#2196F3',
-                lineWidth: 2,
-              });
-
-              lineSeries.setData(chartData);
-
-              // Handle window resize
-              const handleResize = () => {
-                chart.applyOptions({ width: chartContainerRef.current.clientWidth });
-              };
-
-              window.addEventListener('resize', handleResize);
-
-              // Clean up on unmount
-              return () => {
-                window.removeEventListener('resize', handleResize);
-                chart.remove();
-              };
-            }
+      // Daily data
+      fetch(`https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${selectedSymbol}&apikey=${API_KEY}`)
+        .then(response => response.json())
+        .then(data => {
+          const timeSeries = data['Time Series (Daily)'];
+          if (timeSeries) {
+            const daily = Object.keys(timeSeries)
+              .sort() // Sort dates in ascending order
+              .map(date => ({
+                time: date,
+                value: parseFloat(timeSeries[date]['4. close']),
+              }));
+            setDailyData(daily);
           } else {
-            alert('No data found for this stock.');
+            throw new Error('Daily data not available.');
           }
         })
-        .catch((error) => {
-          console.error('Error fetching stock data:', error);
-          alert('Error fetching data. Please try again later.');
+        .catch(error => {
+          console.error('Error fetching daily data:', error);
+          setError('Error fetching daily data. Please try again later.');
+        });
+
+      // Weekly data
+      fetch(`https://www.alphavantage.co/query?function=TIME_SERIES_WEEKLY&symbol=${selectedSymbol}&apikey=${API_KEY}`)
+        .then(response => response.json())
+        .then(data => {
+          const timeSeries = data['Weekly Time Series'];
+          if (timeSeries) {
+            const weekly = Object.keys(timeSeries)
+              .sort() // Sort dates in ascending order
+              .map(date => ({
+                time: date,
+                value: parseFloat(timeSeries[date]['4. close']),
+              }));
+            setWeeklyData(weekly);
+          } else {
+            throw new Error('Weekly data not available.');
+          }
+        })
+        .catch(error => {
+          console.error('Error fetching weekly data:', error);
+          setError('Error fetching weekly data. Please try again later.');
+        });
+
+      // Monthly data
+      fetch(`https://www.alphavantage.co/query?function=TIME_SERIES_MONTHLY&symbol=${selectedSymbol}&apikey=${API_KEY}`)
+        .then(response => response.json())
+        .then(data => {
+          const timeSeries = data['Monthly Time Series'];
+          if (timeSeries) {
+            const monthly = Object.keys(timeSeries)
+              .sort() // Sort dates in ascending order
+              .map(date => ({
+                time: date,
+                value: parseFloat(timeSeries[date]['4. close']),
+              }));
+            setMonthlyData(monthly);
+          } else {
+            throw new Error('Monthly data not available.');
+          }
+        })
+        .catch(error => {
+          console.error('Error fetching monthly data:', error);
+          setError('Error fetching monthly data. Please try again later.');
         });
     }
   }, [selectedSymbol]);
 
+  // Initialize chart and update based on interval
   useEffect(() => {
-    if (chatWindowRef.current) {
-      chatWindowRef.current.scrollTop = chatWindowRef.current.scrollHeight;
-    }
-  }, [conversation]);
+    const chart = createChart(chartContainerRef.current, {
+      width: chartContainerRef.current.clientWidth,
+      height: 400,
+      layout: {
+        backgroundColor: '#0e0e10',
+        textColor: '#ffffff',
+        timeScale: {
+          borderColor: '#d1d4dc',
+          fixLeftEdge: true,
+          visible: true,
+          rightOffset: 10,
+          barSpacing: 10,
+          tickMarkFormatter: (time, tickMarkType, locale) => {
+            // Customize time format if needed
+            return new Date(time * 1000).toLocaleDateString(locale, {
+              month: 'short',
+              day: 'numeric',
+            });
+          },
+        },
+      }
+    });
 
-  const handleStockClick = (symbol) => {
-    navigate(`/stocks/${symbol}`); // Navigate to StockDetails component
+    chartRef.current = chart;
+    setChartInterval('1D'); // Set default to daily on load
+
+    return () => {
+      if (chartRef.current) {
+        chartRef.current.remove();
+      }
+    };
+  }, [dailyData, weeklyData, monthlyData]);
+
+  // Function to switch chart interval
+  const setChartInterval = (interval) => {
+    if (!chartRef.current) return;
+
+    let data = [];
+    let color = '#2962FF';
+
+    switch (interval) {
+      case '1D':
+        data = dailyData;
+        color = '#2962FF';
+        break;
+      case '1W':
+        data = weeklyData;
+        color = 'rgb(225, 87, 90)';
+        break;
+      case '1M':
+        data = monthlyData;
+        color = 'rgb(242, 142, 44)';
+        break;
+      default:
+        data = dailyData;
+    }
+
+    if (data && data.length > 0) {
+      // Remove the existing series if it exists
+      if (chartRef.current.lineSeries) {
+        chartRef.current.removeSeries(chartRef.current.lineSeries);
+      }
+
+      // Create a new line series and set the data
+      chartRef.current.lineSeries = chartRef.current.addLineSeries({ color });
+      chartRef.current.lineSeries.setData(data);
+      chartRef.current.timeScale().fitContent();
+    } else {
+      console.error("Data for the selected interval is undefined or empty.");
+    }
   };
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    if (userQuery.trim() !== '') {
-      // Add user's message to the conversation
-      const newConversation = [...conversation, { sender: 'user', message: userQuery.trim() }];
+    if (userQuery.trim() === '') return;
 
-      // Send POST request to the /query endpoint
-      fetch('http://127.0.0.1:5000/query', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: userQuery.trim() }),
+    // Add user's message to the conversation
+    setConversation((prevConversation) => [
+      ...prevConversation,
+      { role: 'user', message: userQuery.trim() },
+    ]);
+
+    // Prepare the conversation history for the API
+    const apiConversationHistory = conversation.map((msg) => ({
+      [msg.role]: msg.message,
+    }));
+
+    fetch('https://c96e-2601-41-c282-d680-e18b-2409-99d1-490c.ngrok-free.app/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: userQuery.trim(),
+        conversation_history: apiConversationHistory,
+      }),
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        let assistantMessage = '';
+
+        if (data.response) {
+          assistantMessage = data.response;
+        } else {
+          assistantMessage = 'Sorry, I did not understand your question.';
+        }
+
+        // Add assistant's response to the conversation
+        setConversation((prevConversation) => [
+          ...prevConversation,
+          { role: 'assistant', message: assistantMessage },
+        ]);
       })
-        .then((response) => response.json())
-        .then((data) => {
-          let assistantMessage = '';
+      .catch((error) => {
+        console.error('Error querying data:', error);
+        alert('Error querying data. Please try again later.');
+      });
 
-          // Check if documents are present in the response
-          if (data.documents && data.documents.length > 0) {
-            // Loop through each array of documents
-            data.documents.forEach((docArray) => {
-              docArray.forEach((doc) => {
-                try {
-                  // Parse the JSON string in each document
-                  const parsedDoc = JSON.parse(doc);
-                  // Check if 'Meta Data' exists in the parsed document
-                  if (parsedDoc['Meta Data']) {
-                    const metaData = parsedDoc['Meta Data'];
-                    assistantMessage += `Information: ${metaData['1. Information']}\n`;
-                    assistantMessage += `Symbol: ${metaData['2. Symbol']}\n`;
-                    assistantMessage += `Last Refreshed: ${metaData['3. Last Refreshed']}\n`;
-                    assistantMessage += `Output Size: ${metaData['4. Output Size']}\n`;
-                    assistantMessage += `Time Zone: ${metaData['5. Time Zone']}\n\n`;
-                  }
-                } catch (e) {
-                  console.error('Error parsing document:', e);
-                }
-              });
-            });
-          } else {
-            assistantMessage = 'Sorry, I did not understand your question.';
-          }
-
-          // Add assistant's message to the conversation
-          setConversation([...newConversation, { sender: 'assistant', message: assistantMessage }]);
-        })
-        .catch((error) => {
-          console.error('Error querying data:', error);
-          alert('Error querying data. Please try again later.');
-        });
-
-      // Clear the input
-      setUserQuery('');
-    }
+    // Clear the input
+    setUserQuery('');
   };
 
   const handleTextareaChange = (e) => {
@@ -193,150 +263,190 @@ function MainComponent() {
     )}px`;
   };
 
+  const handleChatToggle = () => {
+    setIsChatExpanded(!isChatExpanded);
+  };
+
+  const handleStockClick = (symbol) => {
+    navigate(`/stocks/${symbol}`); // Navigate to StockDetails component
+  };
+
   return (
-    <div className="main-container">
-      {/* Chart */}
-      <div ref={chartContainerRef} className="chart-container"></div>
+    <div className={`main-container ${isChatExpanded ? 'chat-expanded' : ''}`}>
+      <div className="content-container">
+        <h1 className="section-title">Today's Top Movers</h1>
 
-      {/* Display top gainers, losers, and most active */}
-      <div className="lists-container">
-        {/* Top Gainers */}
-        <div className="list">
-          <h2>Top 10 Gainers</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Ticker</th>
-                <th>Price (USD)</th>
-                <th>Change (%)</th>
-                <th>Change (USD)</th>
-                <th>Volume</th>
-              </tr>
-            </thead>
-            <tbody>
-              {topGainers.map((stock) => (
-                <tr key={stock.ticker} onClick={() => handleStockClick(stock.ticker)}>
-                  <td>{stock.ticker}</td>
-                  <td>{stock.price}</td>
-                  <td>
-                    {stock.change_percentage.includes('-') ? (
-                      <span className="negative-change">
-                        ↓ {stock.change_percentage}
-                      </span>
-                    ) : (
-                      <span className="positive-change">
-                        ↑ {stock.change_percentage}
-                      </span>
-                    )}
-                  </td>
-                  <td>{stock.change_amount}</td>
-                  <td>{stock.volume}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        {/* Error Message */}
+        {error && <p className="error-message">{error}</p>}
+
+        {/* Interval Buttons */}
+        <div className="interval-buttons">
+          <button onClick={() => setChartInterval('1D')}>1D</button>
+          <button onClick={() => setChartInterval('1W')}>1W</button>
+          <button onClick={() => setChartInterval('1M')}>1M</button>
         </div>
 
-        {/* Top Losers */}
-        <div className="list">
-          <h2>Top 10 Losers</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Ticker</th>
-                <th>Price (USD)</th>
-                <th>Change (%)</th>
-                <th>Change (USD)</th>
-                <th>Volume</th>
-              </tr>
-            </thead>
-            <tbody>
-              {topLosers.map((stock) => (
-                <tr key={stock.ticker} onClick={() => handleStockClick(stock.ticker)}>
-                  <td>{stock.ticker}</td>
-                  <td>{stock.price}</td>
-                  <td>
-                    {stock.change_percentage.includes('-') ? (
-                      <span className="negative-change">
-                        ↓ {stock.change_percentage}
-                      </span>
-                    ) : (
-                      <span className="positive-change">
-                        ↑ {stock.change_percentage}
-                      </span>
-                    )}
-                  </td>
-                  <td>{stock.change_amount}</td>
-                  <td>{stock.volume}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {/* Chart Container*/}
+        <div ref={chartContainerRef} className="chart-container w-full" />
 
-        {/* Most Active */}
-        <div className="list">
-          <h2>Top 10 Most Active</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Ticker</th>
-                <th>Price (USD)</th>
-                <th>Change (%)</th>
-                <th>Change (USD)</th>
-                <th>Volume</th>
-              </tr>
-            </thead>
-            <tbody>
-              {mostActive.map((stock) => (
-                <tr key={stock.ticker} onClick={() => handleStockClick(stock.ticker)}>
-                  <td>{stock.ticker}</td>
-                  <td>{stock.price}</td>
-                  <td>
-                    {stock.change_percentage.includes('-') ? (
-                      <span className="negative-change">
-                        ↓ {stock.change_percentage}
-                      </span>
-                    ) : (
-                      <span className="positive-change">
-                        ↑ {stock.change_percentage}
-                      </span>
-                    )}
-                  </td>
-                  <td>{stock.change_amount}</td>
-                  <td>{stock.volume}</td>
+        {/* Display top gainers, losers, and most active */}
+        <div className="lists-container">
+          {/* Top Gainers */}
+          <div className="list">
+            <h2>Top 10 Gainers</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Ticker</th>
+                  <th>Price (USD)</th>
+                  <th>Change</th>
+                  <th>Volume</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Conversation Chat */}
-      <div className="chat-window" ref={chatWindowRef}>
-        {conversation.map((chat, index) => (
-          <div key={index} className={`chat-message ${chat.sender}`}>
-            <div className="message" style={{ whiteSpace: 'pre-wrap' }}>{chat.message}</div>
+              </thead>
+              <tbody>
+                {topGainers.map((stock) => (
+                  <tr key={stock.ticker} onClick={() => handleStockClick(stock.ticker)}>
+                    <td>{stock.ticker}</td>
+                    <td>{stock.price}</td>
+                    <td>
+                      {stock.change_percentage.includes('-') ? (
+                        <span className="negative-change">
+                          ▼ {stock.change_percentage} ({stock.change_amount})
+                        </span>
+                      ) : (
+                        <span className="positive-change">
+                          ▲ {stock.change_percentage} ({stock.change_amount})
+                        </span>
+                      )}
+                    </td>
+                    <td>{stock.volume}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        ))}
+
+          {/* Top Losers */}
+          <div className="list">
+            <h2>Top 10 Losers</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Ticker</th>
+                  <th>Price (USD)</th>
+                  <th>Change</th>
+                  <th>Volume</th>
+                </tr>
+              </thead>
+              <tbody>
+                {topLosers.map((stock) => (
+                  <tr key={stock.ticker} onClick={() => handleStockClick(stock.ticker)}>
+                    <td>{stock.ticker}</td>
+                    <td>{stock.price}</td>
+                    <td>
+                      {stock.change_percentage.includes('-') ? (
+                        <span className="negative-change">
+                          ▼ {stock.change_percentage} ({stock.change_amount})
+                        </span>
+                      ) : (
+                        <span className="positive-change">
+                          ▲ {stock.change_percentage} ({stock.change_amount})
+                        </span>
+                      )}
+                    </td>
+                    <td>{stock.volume}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Most Active */}
+          <div className="list">
+            <h2>Top 10 Most Active</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Ticker</th>
+                  <th>Price (USD)</th>
+                  <th>Change</th>
+                  <th>Volume</th>
+                </tr>
+              </thead>
+              <tbody>
+                {mostActive.map((stock) => (
+                  <tr key={stock.ticker} onClick={() => handleStockClick(stock.ticker)}>
+                    <td>{stock.ticker}</td>
+                    <td>{stock.price}</td>
+                    <td>
+                      {stock.change_percentage.includes('-') ? (
+                        <span className="negative-change">
+                          ▼ {stock.change_percentage} ({stock.change_amount})
+                        </span>
+                      ) : (
+                        <span className="positive-change">
+                          ▲ {stock.change_percentage} ({stock.change_amount})
+                        </span>
+                      )}
+                    </td>
+                    <td>{stock.volume}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
-      {/* Search bar */}
-      <form onSubmit={handleSubmit} className="search-form">
-        <div className="input-container">
-          <textarea
-            ref={textareaRef}
-            value={userQuery}
-            onChange={handleTextareaChange}
-            placeholder="Hey I'm your Financial Advisor, feel free to ask me any questions you have..."
-            rows="1"
-            style={{ resize: 'none', overflow: 'hidden', maxHeight: '120px', width: "100%" }}
-          />
-          <button type="submit" className="send-button">
-            ➤
+
+      {/* Chat Interface */}
+      <div className={`chat-interface ${isChatExpanded ? 'expanded' : ''}`}>
+        {isChatExpanded && (
+          <>
+            <button
+              className="collapse-button"
+              onClick={handleChatToggle}
+              aria-label="Collapse chat"
+            >
+              <FontAwesomeIcon icon={faChevronDown} />
+            </button>
+
+            <div className="chat-window" ref={chatWindowRef}>
+              {conversation.map((chat, index) => (
+                <div key={index} className={`chat-message ${chat.role}`}>
+                  <div className="message">{chat.message}</div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        <form onSubmit={handleSubmit} >
+          <div className="input-container">
+            <textarea
+              ref={textareaRef}
+              value={userQuery}
+              onChange={handleTextareaChange}
+              placeholder="Hey, I'm your Financial Advisor. Feel free to ask me any questions you have..."
+              rows="1"
+              className='chat-input'
+            />
+            <button type="submit" className="send-button">
+              <Send className="w-5 h-5" />
+            </button>
+          </div>
+        </form>
+
+        {!isChatExpanded && (
+          <button
+            className="collapse-button"
+            onClick={handleChatToggle}
+            aria-label="Expand chat"
+          >
+            <FontAwesomeIcon icon={faChevronUp} />
           </button>
-        </div>
-      </form>
+        )}
+      </div>
     </div>
   );
 }

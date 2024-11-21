@@ -1,8 +1,8 @@
-// src/App.js
 import React, { useContext } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import './App.css';
 import Sidebar from './components/Sidebar';
+import TopBar from './components/TopBar';
 import MainContainer from './webpages/MainContainer';
 import StockDetails from './webpages/StockDetails';
 import Portfolio from './webpages/Portfolio';
@@ -18,32 +18,35 @@ function App() {
 
   return (
     <Router>
-      <div className="App flex">
+      <div className="App">
         {isAuthenticated && <Sidebar />}
-        <main className={isAuthenticated ? 'flex-1 ml-64 p-6' : 'flex-1 p-6'}>
-          <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/signup" element={<SignupPage />} />
-            {isAuthenticated ? (
-              <>
-                <Route path="/advisor" element={<MainContainer />} />
-                <Route path="/stocks/:symbol" element={<StockDetails />} />
-                <Route path="/portfolio" element={<Portfolio />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/account" element={<Account />} />
-              </>
-            ) : (
-              <>
-                <Route path="/advisor" element={<Navigate to="/login" />} />
-                <Route path="/stocks/:symbol" element={<Navigate to="/login" />} />
-                <Route path="/portfolio" element={<Navigate to="/login" />} />
-                <Route path="/dashboard" element={<Navigate to="/login" />} />
-                <Route path="/account" element={<Navigate to="/login" />} />
-              </>
-            )}
-          </Routes>
-        </main>
+        <div className="app-content">
+          {isAuthenticated && <TopBar />}
+          <main>
+            <Routes>
+              <Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" /> : <LandingPage />} />
+              <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" /> : <LoginPage />} />
+              <Route path="/signup" element={isAuthenticated ? <Navigate to="/dashboard" /> : <SignupPage />} />
+              {isAuthenticated ? (
+                <>
+                  <Route path="/advisor" element={<MainContainer />} />
+                  <Route path="/stocks/:symbol" element={<StockDetails />} />
+                  <Route path="/portfolio" element={<Portfolio />} />
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/account" element={<Account />} />
+                </>
+              ) : (
+                <>
+                  <Route path="/advisor" element={<Navigate to="/login" />} />
+                  <Route path="/stocks/:symbol" element={<Navigate to="/login" />} />
+                  <Route path="/portfolio" element={<Navigate to="/login" />} />
+                  <Route path="/dashboard" element={<Navigate to="/login" />} />
+                  <Route path="/account" element={<Navigate to="/login" />} />
+                </>
+              )}
+            </Routes>
+          </main>
+        </div>
       </div>
     </Router>
   );
