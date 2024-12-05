@@ -108,14 +108,6 @@
     margin-right: 8px;
 }
 
-/* Message styling */
-.message {
-    margin-top: 10px;
-    color: green;
-    font-size: 14px;
-    text-align: center;
-}
-
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .account-card {
