@@ -245,19 +245,11 @@ function MainComponent() {
       [msg.role]: msg.message,
     }));
 
-    const userPrompt = `
-    ${userQuery.trim()}
-
-    The following information is provided by the user, including their personal details and portfolio data. Use this information to offer a personalized, relevant, and professional response to their query.
-    [User Details & Portfolio Data]:
-    ${JSON.stringify(userDetails, null, 2)}
-    `;
-
     fetch('http://20.96.194.91:5001/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        query: userPrompt,
+        query: userQuery.trim(),
         conversation_history: apiConversationHistory,
       }),
     })
