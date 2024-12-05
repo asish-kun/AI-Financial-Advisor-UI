@@ -32,6 +32,31 @@ function MainComponent() {
 
   const API_KEY = '9ZQUXAH9JOQRSQDV';
 
+  const userDetailsString = localStorage.getItem('userDetails');
+  var userDetails = userDetailsString ? JSON.parse(userDetailsString) : null;
+
+  // If userDetails is present, remove the monthly_data from the portfolio array
+  if (userDetails && userDetails.portfolio) {
+    // Construct a simpler userDetails object:
+    userDetails = {
+      username: userDetails.username,
+      age: userDetails.age,
+      gender: userDetails.gender,
+      email: userDetails.email,
+      investmentGoal: userDetails.investmentGoal,
+      riskAppetite: userDetails.riskAppetite,
+      timeHorizon: userDetails.timeHorizon,
+      portfolio: userDetails.portfolio.map(stock => ({
+        symbol: stock.symbol,
+        name: stock.companyOverview?.Name,
+        currentPrice: stock.currentPrice,
+        purchasePrice: stock.purchasePrice,
+        shares: stock.shares,
+        amount: stock.amount
+      }))
+    };
+  }
+
   useEffect(() => {
     setSelectedSymbol(symbol);
   }, [symbol]);
@@ -205,10 +230,14 @@ function MainComponent() {
     event.preventDefault();
     if (userQuery.trim() === '') return;
 
+    // Expand chat on user message send
+    setIsChatExpanded(true);
+
     // Add user's message to the conversation
     setConversation((prevConversation) => [
       ...prevConversation,
       { role: 'user', message: userQuery.trim() },
+      { role: 'assistant', message: 'Thinking...' }
     ]);
 
     // Prepare the conversation history for the API
@@ -216,11 +245,19 @@ function MainComponent() {
       [msg.role]: msg.message,
     }));
 
-    fetch('https://c96e-2601-41-c282-d680-e18b-2409-99d1-490c.ngrok-free.app/chat', {
+    const userPrompt = `
+    ${userQuery.trim()}
+
+    The following information is provided by the user, including their personal details and portfolio data. Use this information to offer a personalized, relevant, and professional response to their query.
+    [User Details & Portfolio Data]:
+    ${JSON.stringify(userDetails, null, 2)}
+    `;
+
+    fetch('http://20.96.194.91:5001/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        query: userQuery.trim(),
+        query: userPrompt,
         conversation_history: apiConversationHistory,
       }),
     })
@@ -235,13 +272,21 @@ function MainComponent() {
         }
 
         // Add assistant's response to the conversation
-        setConversation((prevConversation) => [
-          ...prevConversation,
-          { role: 'assistant', message: assistantMessage },
-        ]);
+        setConversation((prevConversation) => {
+          const newConv = [...prevConversation];
+          // The last added message is "Thinking...", so replace it:
+          newConv[newConv.length - 1] = { role: 'assistant', message: assistantMessage };
+          return newConv;
+        });
       })
       .catch((error) => {
         console.error('Error querying data:', error);
+        setConversation((prevConversation) => {
+          const newConv = [...prevConversation];
+          // The last added message is "Thinking...", so replace it:
+          newConv[newConv.length - 1] = { role: 'assistant', message: `Error fetching answer + ${error}` };
+          return newConv;
+        });
         alert('Error querying data. Please try again later.');
       });
 
@@ -427,6 +472,12 @@ function MainComponent() {
               ref={textareaRef}
               value={userQuery}
               onChange={handleTextareaChange}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSubmit(e);
+                }
+              }}
               placeholder="Hey, I'm your Financial Advisor. Feel free to ask me any questions you have..."
               rows="1"
               className='chat-input'

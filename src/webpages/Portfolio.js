@@ -1,6 +1,6 @@
 // Portfolio.js
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader } from '../components/ui/Card';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -35,6 +35,8 @@ const Portfolio = () => {
   const [loadingGraphData, setLoadingGraphData] = useState(false);
   const [currentPrices, setCurrentPrices] = useState({});
   const navigate = useNavigate();
+  const textareaRef = useRef(null);
+  const chatWindowRef = useRef(null);
 
   const Spinner = () => (
     <div className="spinner">
@@ -75,6 +77,38 @@ const Portfolio = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    const cachedUserDetailsString = localStorage.getItem('userDetails');
+    const cachedUserDetails = cachedUserDetailsString
+      ? cleanUserDetails(JSON.parse(cachedUserDetailsString))
+      : null;
+
+    setUserDetails(cachedUserDetails);
+    fetchUserDetails();
+  }, []);
+
+  const cleanUserDetails = (details) => {
+    if (!details) return null;
+
+    return {
+      username: details.username,
+      age: details.age,
+      gender: details.gender,
+      email: details.email,
+      investmentGoal: details.investmentGoal,
+      riskAppetite: details.riskAppetite,
+      timeHorizon: details.timeHorizon,
+      portfolio: details.portfolio.map(stock => ({
+        symbol: stock.symbol,
+        name: stock.companyOverview?.Name,
+        currentPrice: stock.currentPrice,
+        purchasePrice: stock.purchasePrice,
+        shares: stock.shares,
+        amount: stock.amount
+      })),
+    };
   };
 
   useEffect(() => {
@@ -326,10 +360,13 @@ const Portfolio = () => {
     event.preventDefault();
     if (userQuery.trim() === '') return;
 
+    setIsChatExpanded(true);
+
     // Add user's message to the conversation
     setConversation((prevConversation) => [
       ...prevConversation,
       { role: 'user', message: userQuery.trim() },
+      { role: 'assistant', message: 'Thinking...' }
     ]);
 
     // Prepare conversation history for the API
@@ -337,12 +374,28 @@ const Portfolio = () => {
       [msg.role]: msg.message,
     }));
 
+    const cleanedDetails = cleanUserDetails(userDetails);
+    if (!cleanedDetails) {
+      alert('User details are missing. Please log in again.');
+      navigate('/login');
+      return;
+    }
+
+    // Prepare a prompt that includes user details and user query
+    const userPrompt = `
+    ${userQuery.trim()}
+
+    The following information is provided by the user, including their personal details and portfolio data. Use this information to offer a personalized, relevant, and professional response to their query.
+    [User Details & Portfolio Data]:
+    ${JSON.stringify(cleanedDetails, null, 2)}
+    `;
+
     // Call the API
-    fetch('https://c96e-2601-41-c282-d680-e18b-2409-99d1-490c.ngrok-free.app/chat', {
+    fetch('http://20.96.194.91:5001/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        query: userQuery.trim(),
+        query: userPrompt,
         conversation_history: apiConversationHistory,
       }),
     })
@@ -351,13 +404,19 @@ const Portfolio = () => {
         let assistantMessage = data.response || 'Sorry, I did not understand your question.';
 
         // Add assistant's response to the conversation
-        setConversation((prevConversation) => [
-          ...prevConversation,
-          { role: 'assistant', message: assistantMessage },
-        ]);
+        setConversation((prevConversation) => {
+          const newConv = [...prevConversation];
+          newConv[newConv.length - 1] = { role: 'assistant', message: assistantMessage };
+          return newConv;
+        });
       })
       .catch((error) => {
         console.error('Error querying data:', error);
+        setConversation((prevConversation) => {
+          const newConv = [...prevConversation];
+          newConv[newConv.length - 1] = { role: 'assistant', message: `Error fetching answer + ${error}` };
+          return newConv;
+        });
         alert('Error querying data. Please try again later.');
       });
 
@@ -365,8 +424,23 @@ const Portfolio = () => {
     setUserQuery('');
   };
 
-  const handleTextareaChange = (e) => setUserQuery(e.target.value);
-  const handleChatToggle = () => setIsChatExpanded(!isChatExpanded);
+  const handleTextareaChange = (e) => {
+    setUserQuery(e.target.value);
+
+    // Reset height to auto to calculate scrollHeight correctly
+    textareaRef.current.style.height = 'auto';
+
+    // Set height to scrollHeight, limited to maxHeight (6 lines)
+    const maxHeight = 6 * 20; // Assuming line-height is 20px
+    textareaRef.current.style.height = `${Math.min(
+      textareaRef.current.scrollHeight,
+      maxHeight
+    )}px`;
+  };
+
+  const handleChatToggle = () => {
+    setIsChatExpanded(!isChatExpanded);
+  };
 
   return (
     <div className="portfolio pt-16">
@@ -537,14 +611,20 @@ const Portfolio = () => {
           <p>You have not added any stocks to your portfolio yet.</p>
         )}
       </div>
+
+      {/* Chat Interface */}
       <div className={`chat-interface ${isChatExpanded ? 'expanded' : ''}`}>
         {isChatExpanded && (
           <>
-            <button className="collapse-button" onClick={handleChatToggle} aria-label="Collapse chat">
+            <button
+              className="collapse-button"
+              onClick={handleChatToggle}
+              aria-label="Collapse chat"
+            >
               <FontAwesomeIcon icon={faChevronDown} />
             </button>
 
-            <div className="chat-window">
+            <div className="chat-window" ref={chatWindowRef}>
               {conversation.map((chat, index) => (
                 <div key={index} className={`chat-message ${chat.role}`}>
                   <div className="message">{chat.message}</div>
@@ -553,12 +633,20 @@ const Portfolio = () => {
             </div>
           </>
         )}
-        <form onSubmit={handleSubmit} className="chat-form">
+
+        <form onSubmit={handleSubmit} >
           <div className="input-container">
             <textarea
+              ref={textareaRef}
               value={userQuery}
               onChange={handleTextareaChange}
-              placeholder="Ask your Financial Advisor anything..."
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSubmit(e);
+                }
+              }}
+              placeholder="Hey, I'm your Financial Advisor. Feel free to ask me any questions you have..."
               rows="1"
               className='chat-input'
             />
@@ -567,8 +655,13 @@ const Portfolio = () => {
             </button>
           </div>
         </form>
+
         {!isChatExpanded && (
-          <button className="collapse-button" onClick={handleChatToggle} aria-label="Expand chat">
+          <button
+            className="collapse-button"
+            onClick={handleChatToggle}
+            aria-label="Expand chat"
+          >
             <FontAwesomeIcon icon={faChevronUp} />
           </button>
         )}

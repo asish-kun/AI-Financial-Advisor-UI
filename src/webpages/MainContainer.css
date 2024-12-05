@@ -127,7 +127,6 @@
     right: 0;
     width: calc(100% - 18rem);
     /* Dynamically adjust based on sidebar width */
-    height: auto;
     max-width: 100%;
     transition: all 0.3s ease;
     display: flex;
@@ -138,7 +137,8 @@
 }
 
 .chat-interface.expanded {
-    height: calc(100% - 4rem);
+    width: calc(100% - 18rem);
+    max-height: calc(100% - 4rem);
     /* Full height minus top bar */
 }
 
@@ -152,13 +152,41 @@
 /* Ensure the chat window content is scrollable */
 .chat-window {
     overflow-y: auto;
-    margin-bottom: 60px;
     padding: 10px;
+    margin-bottom: 16px;
     background-color: #f9f9f9;
     border: 1px solid #ddd;
     border-radius: 5px;
+    display: flex;
+    flex-direction: column;
     /* Leave space for input field */
 }
+
+.chat-message {
+    display: flex;
+    margin-bottom: 10px;
+    max-width: 70%;
+    padding: 10px;
+    border-radius: 15px;
+    word-wrap: break-word;
+}
+
+/* User messages on the right */
+.chat-message.user {
+    align-self: flex-end;
+    background-color: #007bff;
+    color: #fff;
+    border-radius: 15px 15px 0 15px;
+}
+
+/* Assistant messages on the left */
+.chat-message.assistant {
+    align-self: flex-start;
+    background-color: #ddd;
+    color: #333;
+    border-radius: 15px 15px 15px 0;
+}
+
 
 .collapse-button {
     position: absolute;
