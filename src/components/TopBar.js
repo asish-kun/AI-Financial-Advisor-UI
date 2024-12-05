@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Search, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import './TopBar.css';
@@ -12,7 +12,8 @@ const TopBar = () => {
     const navigate = useNavigate();
     const API_KEY = '9ZQUXAH9JOQRSQDV';
 
-    const fetchUserDetails = async () => {
+    // Fetch user details from the API and handle caching
+    const fetchUserDetails = useCallback(async () => {
         const email = localStorage.getItem('email');
         if (!email) {
             alert('No user email found. Redirecting to login.');
@@ -21,7 +22,7 @@ const TopBar = () => {
         }
 
         try {
-            const response = await fetch(`http://127.0.0.1:5000/user-details/${encodeURIComponent(email)}`, {
+            const response = await fetch(`https://advisor-be-fb43f8bbbcbd.herokuapp.com/user-details/${encodeURIComponent(email)}`, {
                 method: 'GET',
             });
 
@@ -42,7 +43,7 @@ const TopBar = () => {
         } finally {
             setLoading(false); // Stop loading once the API call completes
         }
-    };
+    }, [navigate]);
 
     useEffect(() => {
         // Check if cached user details are available
@@ -51,13 +52,12 @@ const TopBar = () => {
             setUserDetails(JSON.parse(cachedUserDetails));
             setLoading(false); // Display cached data immediately
         }
-
         // Fetch updated user details from the API
         fetchUserDetails();
-    }, []);
+    }, [fetchUserDetails]);
 
     // Function to handle the API call for stock search
-    const handleSearch = async (query) => {
+    const handleSearch = useCallback(async (query) => {
         if (query.trim() === '') {
             setSearchResults([]);
             return;
@@ -66,11 +66,19 @@ const TopBar = () => {
         setIsSearching(true);
         try {
             const response = await fetch(
-                `https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords=${query}&apikey=${API_KEY}`
+                `https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords=${encodeURIComponent(query)}&apikey=${API_KEY}`
             );
             const data = await response.json();
+            console.log('API Response:', data.bestMatches); // For debugging
+
             if (data.bestMatches) {
-                setSearchResults(data.bestMatches);
+                const usRegions = ['united states', 'usa', 'us', 'united states of america'];
+                const usEquityMatches = data.bestMatches.filter(
+                    (match) =>
+                        usRegions.includes(match['4. region']?.toLowerCase()) &&
+                        match['3. type']?.toLowerCase() === 'equity'
+                );
+                setSearchResults(usEquityMatches.slice(0, 10)); // Limit to top 10 results
             } else {
                 setSearchResults([]);
             }
@@ -79,7 +87,7 @@ const TopBar = () => {
             setSearchResults([]);
         }
         setIsSearching(false);
-    };
+    }, [API_KEY]);
 
     // Debounced search query update to limit API calls
     useEffect(() => {
@@ -88,7 +96,7 @@ const TopBar = () => {
         }, 300); // 300ms delay
 
         return () => clearTimeout(delayDebounceFn);
-    }, [searchQuery]);
+    }, [searchQuery, handleSearch]);
 
     // Handle input change
     const handleInputChange = (e) => {
@@ -119,11 +127,11 @@ const TopBar = () => {
                 <Search className="search-icon" />
 
                 {/* Search Results Dropdown */}
-                {searchResults.length > 0 && (
+                {(searchResults.length > 0 || (searchQuery.trim() !== '' && !isSearching)) && (
                     <div className="search-results-dropdown">
                         {isSearching ? (
                             <div className="loading">Searching...</div>
-                        ) : (
+                        ) : searchResults.length > 0 ? (
                             searchResults.map((result) => (
                                 <div
                                     key={result['1. symbol']}
@@ -133,6 +141,8 @@ const TopBar = () => {
                                     {result['1. symbol']} - {result['2. name']}
                                 </div>
                             ))
+                        ) : (
+                            <div className="no-results">No results found.</div>
                         )}
                     </div>
                 )}

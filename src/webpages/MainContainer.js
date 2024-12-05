@@ -38,7 +38,7 @@ function MainComponent() {
 
   // Fetch top gainers, losers, and most active on component mount
   useEffect(() => {
-    fetch('http://127.0.0.1:5000/stocks/top_movers')
+    fetch('https://advisor-be-fb43f8bbbcbd.herokuapp.com/stocks/top_movers')
       .then((response) => response.json())
       .then((data) => {
         if (data.top_gainers && data.top_losers && data.most_active) {

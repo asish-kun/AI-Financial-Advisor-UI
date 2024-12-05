@@ -1,21 +1,18 @@
-// server.js or wherever your API endpoint is defined
 const express = require('express');
-const { createUser } = require('./cosmosClient');
+const path = require('path');
+
 const app = express();
-const cors = require('cors');
-app.use(cors({ origin: 'http://localhost:3000' }));
+const PORT = process.env.PORT || 3000;
 
+// Middleware to serve static files from the React app build directory
+app.use(express.static(path.join(__dirname, 'build')));
 
-app.use(express.json());
-
-app.post('/signup', async (req, res) => {
-    try {
-        const userData = req.body;
-        const newUser = await createUser(userData);
-        res.status(201).json({ message: 'User signed up successfully', user: newUser });
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to create user' });
-    }
+// Catch-all route to serve the React app's index.html for all unmatched routes
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'build', 'index.html'));
 });
 
-app.listen(3000, () => console.log('Server running on port 3000'));
+// Start the server
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+});

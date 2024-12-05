@@ -25,16 +25,15 @@ import './Portfolio.css'; // Assuming you have a CSS file for styling
 const Portfolio = () => {
   const [portfolioStocks, setPortfolioStocks] = useState([]);
   const [portfolioHistory, setPortfolioHistory] = useState([]);
-  const [rankedNewsArticles, setRankedNewsArticles] = useState([]);
   const [userQuery, setUserQuery] = useState('');
   const [conversation, setConversation] = useState([]);
   const [isChatExpanded, setIsChatExpanded] = useState(false);
   const [selectedGraph, setSelectedGraph] = useState("total-value");
   const [userDetails, setUserDetails] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [monthlyPortfolioData, setMonthlyPortfolioData] = useState([]);
   const [loadingCurrentPrices, setLoadingCurrentPrices] = useState(true);
-  const [loadingGraphData, setLoadingGraphData] = useState(true);
+  const [loadingGraphData, setLoadingGraphData] = useState(false);
+  const [currentPrices, setCurrentPrices] = useState({});
   const navigate = useNavigate();
 
   const Spinner = () => (
@@ -45,7 +44,7 @@ const Portfolio = () => {
   );
 
   const API_KEY = '9ZQUXAH9JOQRSQDV';
-  const BASE_URL = 'http://127.0.0.1:5000';
+  const BASE_URL = 'https://advisor-be-fb43f8bbbcbd.herokuapp.com';
 
   // Fetch User Details
   const fetchUserDetails = async () => {
@@ -58,7 +57,7 @@ const Portfolio = () => {
 
     try {
       setLoading(true);
-      const response = await fetch(`http://127.0.0.1:5000/user-details/${encodeURIComponent(email)}`, {
+      const response = await fetch(`${BASE_URL}/user-details/${encodeURIComponent(email)}`, {
         method: 'GET',
       });
 
@@ -93,144 +92,118 @@ const Portfolio = () => {
     }
   }, [userDetails]);
 
-
-
-  // Fetching Monthly Over view Data
   useEffect(() => {
-    const fetchMonthlyData = async () => {
-      setLoadingGraphData(true);
+    const fetchDailyPrices = async () => {
+      if (portfolioStocks.length === 0) return;
+
+      setLoadingCurrentPrices(true);
+      const updatedPrices = {};
+
       try {
-        const monthlyDataPromises = portfolioStocks.map(async (stock) => {
-          const cachedData = JSON.parse(localStorage.getItem(`monthlyData_${stock.symbol}`));
-
-          if (cachedData) {
-            return cachedData;
-          }
-
+        // To prevent hitting API rate limits, consider adding delays or using batch requests if supported
+        for (const stock of portfolioStocks) {
           const response = await fetch(
-            `https://www.alphavantage.co/query?function=TIME_SERIES_MONTHLY&symbol=${stock.symbol}&apikey=${API_KEY}`
+            `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${stock.symbol}&apikey=${API_KEY}`
           );
+
+          if (!response.ok) {
+            throw new Error(`Failed to fetch data for ${stock.symbol}`);
+          }
+
           const data = await response.json();
-          const timeSeries = data['Monthly Time Series'];
+          const timeSeries = data['Time Series (Daily)'];
+
           if (timeSeries) {
-            const dates = Object.keys(timeSeries).sort().slice(-30); // Last 30 days
-            const processedData = dates.map((date) => ({
-              date,
-              value: parseFloat(timeSeries[date]['4. close']) * stock.shares,
-            }));
-
-            localStorage.setItem(`monthlyData_${stock.symbol}`, JSON.stringify(processedData)); // Save to localStorage
-            return processedData;
-          }
-          return [];
-        });
-
-        const resolvedMonthlyData = await Promise.all(monthlyDataPromises);
-        const aggregatedData = resolvedMonthlyData.flat().reduce((acc, current) => {
-          const existing = acc.find((item) => item.date === current.date);
-          if (existing) {
-            existing.value += current.value;
+            const latestDate = Object.keys(timeSeries).sort((a, b) => new Date(b) - new Date(a))[0];
+            const latestClose = parseFloat(timeSeries[latestDate]['4. close']);
+            updatedPrices[stock.symbol] = latestClose;
           } else {
-            acc.push({ ...current });
+            console.error(`No Time Series data for ${stock.symbol}`);
+            updatedPrices[stock.symbol] = null; // or a default value
           }
-          return acc;
-        }, []);
+        }
 
-        aggregatedData.sort((a, b) => new Date(a.date) - new Date(b.date)); // Sort by date
-        setMonthlyPortfolioData(aggregatedData);
+        setCurrentPrices(updatedPrices);
       } catch (error) {
-        console.error('Error fetching monthly graph data:', error);
+        console.error('Error fetching daily prices:', error);
+        alert('Error fetching current stock prices. Please try again later.');
       } finally {
-        setLoadingGraphData(false);
+        setLoadingCurrentPrices(false);
       }
     };
 
-    if (portfolioStocks.length > 0) fetchMonthlyData();
+    fetchDailyPrices();
   }, [portfolioStocks]);
 
-  // useEffect(() => {
-  //   const fetchStockPrices = async () => {
-  //     setLoadingCurrentPrices(true);
-  //     try {
-  //       const updatedStocks = await Promise.all(
-  //         portfolioStocks.map(async (stock) => {
-  //           const response = await fetch(`${BASE_URL}/stocks/quote?symbol=${stock.symbol}`);
-  //           const data = await response.json();
-  //           if (data['Global Quote']) {
-  //             const quoteData = data['Global Quote'];
-  //             const currentPrice = parseFloat(quoteData['05. price']) || stock.currentPrice;
-  //             const changePercent = quoteData['10. change percent']
-  //               ? parseFloat(quoteData['10. change percent'].replace('%', ''))
-  //               : 0;
-
-  //             return {
-  //               ...stock,
-  //               currentPrice,
-  //               priceChangePercent: changePercent,
-  //             };
-  //           }
-  //           return { ...stock, currentPrice: stock.currentPrice, priceChangePercent: 0 };
-  //         })
-  //       );
-  //       setPortfolioStocks(updatedStocks);
-  //     } catch (error) {
-  //       console.error('Error fetching stock prices:', error);
-  //       alert('Error fetching stock prices. Please try again later.');
-  //     } finally {
-  //       setLoadingCurrentPrices(false);
-  //     }
-  //   };
-
-  //   if (portfolioStocks.length > 0) {
-  //     fetchStockPrices();
-  //   }
-  // }, [portfolioStocks]);
-
+  // Portfolio History Graph Data
   useEffect(() => {
     if (portfolioStocks.length > 0) {
-      const dates = portfolioStocks[0].lastWeekData.map((data) => data.date);
+      // Ensure that each stock has 'monthlyData'
+      if (!portfolioStocks[0].monthlyData) {
+        console.error('monthlyData is missing in portfolioStocks');
+        setLoadingGraphData(false);
+        return;
+      }
+
+      const dates = portfolioStocks[0].monthlyData.map((data) => data.time);
       const initialPortfolioValue = portfolioStocks.reduce((sum, stock) => {
-        const dayData = stock.lastWeekData[0];
-        return sum + stock.shares * dayData.close;
+        const dayData = stock.monthlyData[0];
+        return sum + stock.shares * dayData.value;
       }, 0);
 
       const history = dates.map((date) => {
         let totalPortfolioValue = 0;
         const stockValues = {};
         portfolioStocks.forEach((stock) => {
-          const dayData = stock.lastWeekData.find((data) => data.date === date);
+          const dayData = stock.monthlyData.find((data) => data.time === date);
           if (dayData) {
-            const stockValue = stock.shares * dayData.close;
+            const stockValue = stock.shares * dayData.value;
             totalPortfolioValue += stockValue;
-            const initialStockValue = stock.shares * stock.lastWeekData[0].close;
+            const initialStockValue = stock.shares * stock.monthlyData[0].value;
             const stockPercentChange =
               ((stockValue - initialStockValue) / initialStockValue) * 100;
-            stockValues[stock.symbol] = stockPercentChange.toFixed(2);
+            stockValues[stock.symbol] = parseFloat(stockPercentChange.toFixed(2));
           }
         });
         const portfolioPercentChange =
-          ((totalPortfolioValue - initialPortfolioValue) / initialPortfolioValue) * 100;
+          initialPortfolioValue !== 0
+            ? ((totalPortfolioValue - initialPortfolioValue) / initialPortfolioValue) * 100
+            : 0;
         return {
           date,
-          portfolioValue: totalPortfolioValue.toFixed(2),
-          portfolioPercentChange: portfolioPercentChange.toFixed(2),
+          portfolioValue: parseFloat(totalPortfolioValue.toFixed(2)),
+          portfolioPercentChange: parseFloat(portfolioPercentChange.toFixed(2)),
           ...stockValues,
         };
       });
       setPortfolioHistory(history);
+      setLoadingGraphData(false); // **Set loadingGraphData to false here**
+    } else {
+      setLoadingGraphData(false); // **Also set to false if there are no stocks**
     }
   }, [portfolioStocks]);
 
   // Compute total current portfolio value
   const totalPortfolioValue = portfolioStocks.reduce((sum, stock) => {
-    const latestPrice = stock.lastWeekData[stock.lastWeekData.length - 1]?.close || 0;
+    const latestPrice = stock.monthlyData[stock.monthlyData.length - 1]?.value || 0;
     return sum + stock.shares * latestPrice;
   }, 0);
 
+  // Calculate total invested and profit/loss
+  const totalInvested = portfolioStocks.reduce((sum, stock) => sum + stock.amount, 0);
+  const profitOrLoss = totalPortfolioValue - totalInvested;
+  const isProfit = profitOrLoss >= 0;
+
+  // Helper function to format profit or loss
+  const formatProfitOrLoss = (value) => {
+    const formattedValue = `$${Math.abs(value).toFixed(2)}`;
+    return isProfit ? `▲ ${formattedValue}` : `▼ ${formattedValue}`;
+  };
+
   // Process stocks to include currentValue and today's change
   const processedStocks = portfolioStocks.map((stock) => {
-    const todayData = stock.lastWeekData[stock.lastWeekData.length - 1];
-    const latestPrice = todayData?.close;
+    const todayData = stock.monthlyData[stock.monthlyData.length - 1];
+    const latestPrice = todayData?.value;
     const purchasePrice = stock.purchasePrice;
     const priceChangePercent = latestPrice && purchasePrice
       ? ((latestPrice - purchasePrice) / purchasePrice) * 100
@@ -253,7 +226,8 @@ const Portfolio = () => {
 
   // Pie chart data processing
   const pieData = portfolioStocks.map((stock) => {
-    const latestPrice = stock.lastWeekData[stock.lastWeekData.length - 1].close;
+    const latestMonthlyData = stock.monthlyData[stock.monthlyData.length - 1];
+    const latestPrice = latestMonthlyData ? latestMonthlyData.value : 0;
     const currentValue = stock.shares * latestPrice;
     return {
       name: stock.companyOverview.Name,
@@ -263,6 +237,12 @@ const Portfolio = () => {
     };
   });
 
+  // Map stock symbols to colors
+  const stockColorMap = portfolioStocks.map((stock, index) => ({
+    symbol: stock.symbol,
+    color: COLORS[index % COLORS.length],
+  }));
+
   const graphs = {
     "total-value": {
       title: "Total Portfolio Value Over Last Month",
@@ -271,13 +251,16 @@ const Portfolio = () => {
       ) : (
         <ResponsiveContainer width="100%" height={300}>
           <LineChart
-            data={monthlyPortfolioData}
+            data={portfolioHistory} // Adjusted to use portfolioHistory
             margin={{ top: 20, right: 30, bottom: 20, left: 20 }}
           >
             <XAxis dataKey="date" />
-            <YAxis tickFormatter={(value) => `$${parseFloat(value).toLocaleString()}`} />
+            <YAxis
+              tickFormatter={(value) => `$${parseFloat(value).toLocaleString()}`}
+              domain={[0, (dataMax) => Math.ceil(dataMax * 1.1)]}
+            />
             <Tooltip formatter={(value) => `$${parseFloat(value).toLocaleString()}`} />
-            <Line type="monotone" dataKey="value" stroke="#8884d8" />
+            <Line type="monotone" dataKey="portfolioValue" stroke="#8884d8" />
           </LineChart>
         </ResponsiveContainer>
       ),
@@ -289,18 +272,13 @@ const Portfolio = () => {
       ) : (
         <ResponsiveContainer width="100%" height={300}>
           <LineChart
-            data={monthlyPortfolioData.map((entry, index, arr) => {
-              if (index === 0) return { ...entry, percentChange: 0 };
-              const prevValue = arr[index - 1].value;
-              const percentChange = ((entry.value - prevValue) / prevValue) * 100;
-              return { ...entry, percentChange };
-            })}
+            data={portfolioHistory} // Adjusted to use portfolioHistory
             margin={{ top: 20, right: 30, bottom: 20, left: 20 }}
           >
             <XAxis dataKey="date" />
             <YAxis tickFormatter={(value) => `${value}%`} domain={['auto', 'auto']} />
             <Tooltip formatter={(value) => `${value.toFixed(2)}%`} />
-            <Line type="monotone" dataKey="percentChange" stroke="#82ca9d" />
+            <Line type="monotone" dataKey="portfolioPercentChange" stroke="#82ca9d" />
           </LineChart>
         </ResponsiveContainer>
       ),
@@ -312,7 +290,7 @@ const Portfolio = () => {
       ) : (
         <ResponsiveContainer width="100%" height={300}>
           <LineChart
-            data={monthlyPortfolioData}
+            data={portfolioHistory} // Adjusted to use portfolioHistory or appropriate data
             margin={{ top: 20, right: 30, bottom: 20, left: 20 }}
           >
             <XAxis dataKey="date" />
@@ -322,11 +300,7 @@ const Portfolio = () => {
               <Line
                 key={stock.symbol}
                 type="monotone"
-                dataKey={(data) =>
-                (data[stock.symbol] =
-                  (monthlyPortfolioData.find((entry) => entry.date === data.date)?.value /
-                    stock.shares) || 0)
-                }
+                dataKey={stock.symbol} // Adjust based on portfolioHistory structure
                 stroke={COLORS[index % COLORS.length]}
               />
             ))}
@@ -397,9 +371,29 @@ const Portfolio = () => {
   return (
     <div className="portfolio pt-16">
       <h1 className="text-2xl font-bold mb-4">Your Portfolio</h1>
-      <h2 className="text-xl font-semibold mb-4">
-        Current Portfolio Value: ${totalPortfolioValue.toFixed(2)}
-      </h2>
+
+      {/* Portfolio Summary */}
+      <div className="portfolio-summary mb-6">
+        <div className="summary-item">
+          <h3 className="text-lg font-semibold">Total Invested</h3>
+          <p className={`text-xl ${isProfit ? 'text-green-600' : 'text-red-600'}`}>
+            ${totalInvested.toFixed(2)}
+          </p>
+        </div>
+        <div className="summary-item">
+          <h3 className="text-lg font-semibold">Current Portfolio Value</h3>
+          <p className={`text-xl ${isProfit ? 'text-green-600' : 'text-red-600'}`}>
+            ${totalPortfolioValue.toFixed(2)}
+          </p>
+        </div>
+        <div className="summary-item">
+          <h3 className="text-lg font-semibold">Profit/Loss</h3>
+          <p className={`text-xl ${isProfit ? 'text-green-600' : 'text-red-600'}`}>
+            {formatProfitOrLoss(profitOrLoss)}
+          </p>
+        </div>
+      </div>
+
       <div className="flex-container">
         {/* Portfolio Value Graph with Dropdown */}
         <Card className="graph-card">
@@ -439,7 +433,15 @@ const Portfolio = () => {
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
-                <Pie data={pieData} cx="50%" cy="50%" outerRadius={100} labelLine={false} dataKey="value">
+                <Pie
+                  data={pieData}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={100}
+                  labelLine={false}
+                  dataKey="value"
+                  nameKey="name"
+                >
                   {pieData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
@@ -457,9 +459,12 @@ const Portfolio = () => {
                       <p>No data available</p>
                     );
                   }}
+                  wrapperStyle={{ whiteSpace: 'pre-line' }} // To handle line breaks
                 />
               </PieChart>
             </ResponsiveContainer>
+
+
           </CardContent>
         </Card>
       </div>
@@ -492,13 +497,20 @@ const Portfolio = () => {
                         <td>{stock.companyOverview.Industry}</td>
                         <td>{stock.companyOverview.Name}</td>
                         <td>{stock.shares}</td>
-                        <td>{stock.dateOfPurchase}</td>
+                        <td>{new Date(stock.dateOfPurchase).toLocaleDateString()}</td>
                         <td>
                           {loadingCurrentPrices ? (
                             <Spinner />
                           ) : (
                             <>
-                              {stock.priceChangePercent >= 0 ? '▲' : '▼'} {(stock.priceChangePercent ?? 0).toFixed(2)}%
+                              {currentPrices[stock.symbol] >= stock.purchasePrice ? '▲' : '▼'}{' '}
+                              {currentPrices[stock.symbol] !== null
+                                ? (
+                                  ((currentPrices[stock.symbol] - stock.purchasePrice) / stock.purchasePrice) *
+                                  100
+                                ).toFixed(2)
+                                : 'N/A'}
+                              %
                             </>
                           )}
                         </td>
@@ -506,38 +518,18 @@ const Portfolio = () => {
                           {loadingCurrentPrices ? (
                             <Spinner />
                           ) : (
-                            `$${(stock.currentValue ?? 0).toFixed(2)}`
+                            currentPrices[stock.symbol] !== null
+                              ? `$${(stock.shares * currentPrices[stock.symbol]).toFixed(2)}`
+                              : 'N/A'
                           )}
                         </td>
                         <td>{stock.predictedPrice ? `$${stock.predictedPrice.toFixed(2)}` : 'N/A'}</td>
-                        <td>'N/A'</td>
+                        <td>N/A</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-            </div>
-
-            {/* News Section */}
-            <div className="news-section">
-              <h2 className="text-lg font-semibold mt-4">Top News Articles</h2>
-              {rankedNewsArticles.length > 0 ? (
-                <div className="news-articles">
-                  {rankedNewsArticles.map((article, index) => (
-                    <div key={index} className="news-article">
-                      <h3>{article.title}</h3>
-                      <p><strong>Source:</strong> {article.source}</p>
-                      <p><strong>Published:</strong> {formatDate(article.time_published)}</p>
-                      <p><strong>Company:</strong> {article.companyName} ({article.symbol})</p>
-                      <p><strong>Summary:</strong> {article.summary}</p>
-                      <p><strong>Impact Score:</strong> {article.impact_score.toFixed(3)}</p>
-                      <a href={article.url} target="_blank" rel="noopener noreferrer">Read more</a>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p>No news articles available for your portfolio stocks.</p>
-              )}
             </div>
 
           </>

@@ -5,6 +5,29 @@
     /* Adds space at the top */
 }
 
+.portfolio-summary {
+    display: flex;
+    justify-content: space-around;
+    background-color: #f9fafb;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 24px;
+}
+
+.summary-item {
+    text-align: center;
+}
+
+.summary-item h3 {
+    margin-bottom: 8px;
+}
+
+.summary-item p {
+    font-weight: bold;
+}
+
+
 .flex-container-graph-title {
     display: flex;
     justify-content: space-between;
@@ -20,6 +43,7 @@
 
 .stock-table {
     margin-top: 20px;
+    margin-bottom: 60px;
 }
 
 .table-container {
@@ -98,6 +122,7 @@
 .graph-card {
     flex: 3;
     min-width: 300px;
+    max-height: 450px;
 }
 
 .pie-chart-card {
@@ -108,6 +133,36 @@
 .stock-table {
     flex: 3;
     /* 75% width */
+}
+
+.stock-ledger {
+    background-color: #f9fafb;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.stock-ledger h3 {
+    margin-bottom: 10px;
+}
+
+.stock-ledger ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.stock-ledger li {
+    display: flex;
+    align-items: center;
+}
+
+.stock-ledger li span:first-child {
+    /* The colored square */
+}
+
+.stock-ledger li span:last-child {
+    /* The stock symbol and name */
 }
 
 .pie-chart {

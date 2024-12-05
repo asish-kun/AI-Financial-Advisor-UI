@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import './AddToPortfolioDialog.css';
 import { useNavigate } from 'react-router-dom';
 
-function AddToPortfolioDialog({ symbol, currentPrice, companyOverview, financialData, newsData, lastWeekData, onClose }) {
+function AddToPortfolioDialog({ symbol, currentPrice, companyOverview, financialData, newsData, monthlyData, onClose }) {
     const [amount, setAmount] = useState('');
     const [shares, setShares] = useState('');
     const [investmentType, setInvestmentType] = useState('Lifetime');
@@ -66,7 +66,7 @@ function AddToPortfolioDialog({ symbol, currentPrice, companyOverview, financial
     };
 
     const handleConfirm = async () => {
-        if (amount > 0 && shares > 0) {
+        if (isFormValid) {
             setIsLoading(true); // Start loading
             const email = localStorage.getItem('email');
 
@@ -80,14 +80,14 @@ function AddToPortfolioDialog({ symbol, currentPrice, companyOverview, financial
                 predictedPrice: null, // Placeholder for predicted price
                 riskAssessment: null, // Placeholder for risk assessment
                 currentPrice,
-                lastWeekData,
+                monthlyData, // Include monthly data
                 companyOverview,
                 financialData,
                 newsData,
             };
 
             try {
-                const response = await fetch(`http://127.0.0.1:5000/user/${encodeURIComponent(email)}/portfolio`, {
+                const response = await fetch(`https://advisor-be-fb43f8bbbcbd.herokuapp.com/user/${encodeURIComponent(email)}/portfolio`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

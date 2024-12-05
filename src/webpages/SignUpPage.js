@@ -19,7 +19,7 @@ const SignupPage = () => {
         e.preventDefault();
         try {
             // Update to point to the correct backend port, e.g., 5000
-            const response = await fetch('http://127.0.0.1:5000/signup', {
+            const response = await fetch('https://advisor-be-fb43f8bbbcbd.herokuapp.com/signup', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -32,7 +32,6 @@ const SignupPage = () => {
                     riskAppetite,
                     timeHorizon,
                 }),
-                credentials: 'include',
             });
 
             if (!response.ok) {
