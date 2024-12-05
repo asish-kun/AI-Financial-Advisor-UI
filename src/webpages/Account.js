@@ -1,28 +1,43 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader } from '../components/ui/Card';
-import { User, Mail, Phone, Shield, Trash2 } from 'lucide-react';
+import React, { useEffect, useState, useCallback } from 'react';
+import { User, Mail, Phone, Shield, Trash2, Target, Clock } from 'lucide-react';
 import axios from 'axios';
+import './Account.css';
 
 const Account = () => {
-
-    const BASE_URL = 'http://127.0.0.1:5000';
-
-    // This would typically come from your authentication system or API
-    const user = {
-        name: "John Doe",
-        email: "test@123.com",
-        phone: "+1 (555) 123-4567",
-        lastLogin: "2024-10-08 14:30:00"
-    };
-
+    const BASE_URL = 'https://advisor-be-fb43f8bbbcbd.herokuapp.com';
+    const [user, setUser] = useState({
+        name: '',
+        email: '',
+        phone: 'Not provided',
+        investmentGoal: '',
+        riskAppetite: '',
+        timeHorizon: '',
+        lastLogin: 'Unknown',
+    });
     const [message, setMessage] = useState('');
+
+    const fetchUserDetails = useCallback(async () => {
+        const email = localStorage.getItem('email');
+        if (!email) return;
+
+        try {
+            const response = await axios.get(`${BASE_URL}/user-details/${email}`);
+            if (response.data) {
+                setUser(response.data);
+            }
+        } catch (error) {
+            console.error('Error fetching user details:', error);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchUserDetails();
+    }, [fetchUserDetails]);
 
     const handleDeletePortfolio = async () => {
         try {
-            // Make API call to delete the user's portfolio
             const response = await axios.delete(`${BASE_URL}/delete-portfolio/${user.email}`);
-            setMessage(response.data.message);
-            // Optionally, refresh the user data or redirect the user
+            setMessage(response.data.message || 'Portfolio deleted successfully.');
         } catch (error) {
             setMessage('An error occurred while deleting the portfolio.');
             console.error(error);
@@ -30,43 +45,66 @@ const Account = () => {
     };
 
     return (
-        <div className="account">
-            <h1 className="text-2xl font-bold mb-4">Account Information</h1>
-            <Card className="max-w-md mx-auto">
-                <CardHeader>
-                    <h2 className="text-xl font-semibold">Personal Details</h2>
-                </CardHeader>
-                <CardContent>
-                    <div className="space-y-4">
-                        <div className="flex items-center">
-                            <User className="mr-2" />
-                            <span>{user.name}</span>
-                        </div>
-                        <div className="flex items-center">
-                            <Mail className="mr-2" />
-                            <span>{user.email}</span>
-                        </div>
-                        <div className="flex items-center">
-                            <Phone className="mr-2" />
-                            <span>{user.phone}</span>
-                        </div>
-                        <div className="flex items-center">
-                            <Shield className="mr-2" />
-                            <span>Last login: {user.lastLogin}</span>
-                        </div>
-                        {/* Add the delete portfolio button */}
-                        <button
-                            onClick={handleDeletePortfolio}
-                            className="bg-red-500 text-white px-4 py-2 mt-4 rounded"
+        <div className="account-container">
+            <div className="account-card">
+                <h1 className="account-header">AI Advisor Account Details</h1>
+                <div className="details-container">
+                    <div className="column">
+                        <div
+                            style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px', backgroundColor: '#f9f9f9', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)' }}
                         >
-                            Delete Portfolio
-                        </button>
-                        {message && <p className="mt-2">{message}</p>}
+                            <User className="icon" style={{ flexShrink: 0, fontSize: '24px', color: '#4a90e2' }} />
+                            <div style={{ fontSize: '16px', color: '#333', fontWeight: 'bold' }}>
+                                Personal Details
+                            </div>
+                        </div>
+                        <div >
+                            <span>Username: {user.username || 'Unknown User'}</span>
+                        </div>
+                        <div >
+                            <span>Gender: {user.gender || 'Unknown User'}</span>
+                        </div>
+                        <div >
+                            <span>Age: {user.age || 'Unknown User'}</span>
+                        </div>
+                        <div className="detail-item">
+                            <Mail className="icon" />
+                            <span>{user.email || 'No Email Provided'}</span>
+                        </div>
+                        <div className="detail-item">
+                            <Phone className="icon" />
+                            <span>{user.phone || 'Not Provided'}</span>
+                        </div>
                     </div>
-                </CardContent>
-            </Card>
+                    <div className="column">
+                        <div className="detail-item">
+                            <Target className="icon" />
+                            <span>Investment Goal: {user.investmentGoal || 'Not Set'}</span>
+                        </div>
+                        <div className="detail-item">
+                            <Shield className="icon" />
+                            <span>Risk Appetite: {user.riskAppetite || 'Unknown'}</span>
+                        </div>
+                        <div className="detail-item">
+                            <Clock className="icon" />
+                            <span>Time Horizon: {user.timeHorizon || 'Not Set'}</span>
+                        </div>
+                    </div>
+                </div>
+                <div className="bottom-section">
+                    <div className="detail-item">
+                        <Shield className="icon" />
+                        <span>Last Login: {user.lastLogin || 'Unknown'}</span>
+                    </div>
+                    <button onClick={handleDeletePortfolio} className="delete-button">
+                        <Trash2 className="delete-icon" /> Delete Portfolio
+                    </button>
+                </div>
+                {message && <p className="message">{message}</p>}
+            </div>
         </div>
     );
+
 };
 
 export default Account;

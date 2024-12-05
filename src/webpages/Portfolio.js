@@ -289,7 +289,7 @@ const Portfolio = () => {
 
   const graphs = {
     "total-value": {
-      title: "Total Portfolio Value Over Last Month",
+      title: "Stock Price Trends",
       component: loadingGraphData ? (
         <Spinner />
       ) : (
