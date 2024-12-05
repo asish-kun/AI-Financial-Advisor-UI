@@ -120,9 +120,18 @@ const Portfolio = () => {
     fetchUserDetails();
   }, []);
 
+  const validateStocks = (stocks) => {
+    return stocks.map((stock) => ({
+      ...stock,
+      companyOverview: stock.companyOverview || { Name: 'Unknown', Industry: 'Unknown' },
+      monthlyData: stock.monthlyData || [],
+    }));
+  };
+
   useEffect(() => {
     if (userDetails && userDetails.portfolio) {
-      setPortfolioStocks(userDetails.portfolio);
+      const validatedStocks = validateStocks(userDetails.portfolio);
+      setPortfolioStocks(validatedStocks);
     }
   }, [userDetails]);
 
@@ -260,11 +269,12 @@ const Portfolio = () => {
 
   // Pie chart data processing
   const pieData = portfolioStocks.map((stock) => {
-    const latestMonthlyData = stock.monthlyData[stock.monthlyData.length - 1];
+    const latestMonthlyData = stock.monthlyData ? stock.monthlyData[stock.monthlyData.length - 1] : null;
     const latestPrice = latestMonthlyData ? latestMonthlyData.value : 0;
     const currentValue = stock.shares * latestPrice;
+
     return {
-      name: stock.companyOverview.Name,
+      name: stock.companyOverview?.Name || 'Unknown',
       value: currentValue,
       symbol: stock.symbol,
       holdings: stock.shares,
@@ -567,11 +577,11 @@ const Portfolio = () => {
                   <tbody>
                     {sortedStocks.map((stock, index) => (
                       <tr key={index}>
-                        <td>{stock.symbol}</td>
-                        <td>{stock.companyOverview.Industry}</td>
-                        <td>{stock.companyOverview.Name}</td>
-                        <td>{stock.shares}</td>
-                        <td>{new Date(stock.dateOfPurchase).toLocaleDateString()}</td>
+                        <td>{stock.symbol || 0}</td>
+                        <td>{stock.companyOverview?.Industry || 'Unknown'}</td>
+                        <td>{stock.companyOverview?.Name || 'Unknown'}</td>
+                        <td>{stock.shares || 0}</td>
+                        <td>{new Date(stock.dateOfPurchase).toLocaleDateString() || "N/A"}</td>
                         <td>
                           {loadingCurrentPrices ? (
                             <Spinner />

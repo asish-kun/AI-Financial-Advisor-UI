@@ -24,9 +24,9 @@ function App() {
           {isAuthenticated && <TopBar />}
           <main>
             <Routes>
-              <Route path="/" element={isAuthenticated ? <Navigate to="/dashboard" /> : <LandingPage />} />
-              <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" /> : <LoginPage />} />
-              <Route path="/signup" element={isAuthenticated ? <Navigate to="/dashboard" /> : <SignupPage />} />
+              <Route path="/" element={isAuthenticated ? <Navigate to="/advisor" /> : <LandingPage />} />
+              <Route path="/login" element={isAuthenticated ? <Navigate to="/advisor" /> : <LoginPage />} />
+              <Route path="/signup" element={isAuthenticated ? <Navigate to="/advisor" /> : <SignupPage />} />
               {isAuthenticated ? (
                 <>
                   <Route path="/advisor" element={<MainContainer />} />
