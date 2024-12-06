@@ -9,6 +9,7 @@ const SignupPage = () => {
     const [password, setPassword] = useState('');
     const [gender, setGender] = useState('');
     const [age, setAge] = useState('');
+    const [investmentAmount, setInvestmentAmount] = useState('');
     const [investmentGoal, setInvestmentGoal] = useState('');
     const [riskAppetite, setRiskAppetite] = useState('');
     const [timeHorizon, setTimeHorizon] = useState('');
@@ -28,6 +29,7 @@ const SignupPage = () => {
                     password,
                     gender,
                     age,
+                    investmentAmount,
                     investmentGoal,
                     riskAppetite,
                     timeHorizon,
@@ -50,54 +52,27 @@ const SignupPage = () => {
     };
 
     return (
-        <form className="signup-form" onSubmit={handleSignup}>
-            <h1 className="signup-title">Sign Up</h1>
-            <input
-                className="signup-input"
-                type="text"
-                placeholder="Username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-            />
-            <input
-                className="signup-input"
-                type="email"
-                placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-            />
-            <input
-                className="signup-input"
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-            />
-            <input
-                className="signup-input"
-                type="text"
-                placeholder="Gender"
-                value={gender}
-                onChange={(e) => setGender(e.target.value)}
-                required
-            />
+        <form onSubmit={handleSignup}>
+            <h1>Sign Up</h1>
+            <input type="text" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} required />
+            <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+
+            <input type="text" placeholder="Gender" value={gender} onChange={(e) => setGender(e.target.value)} required />
+            <input type="number" placeholder="Age" value={age} onChange={(e) => setAge(e.target.value)} required />
             <input
                 className="signup-input"
                 type="number"
-                placeholder="Age"
-                value={age}
-                onChange={(e) => setAge(e.target.value)}
+                placeholder="Investment Amount (e.g., between $1,000 - $1,000,000)"
+                min="1000" // Minimum investment amount
+                max="1000000" // Maximum investment amount
+                step="100" // Step value for increments
+                value={investmentAmount}
+                onChange={(e) => setInvestmentAmount(e.target.value)}
                 required
             />
-            <select
-                className="signup-select"
-                value={investmentGoal}
-                onChange={(e) => setInvestmentGoal(e.target.value)}
-                required
-            >
+
+            <select value={investmentGoal} onChange={(e) => setInvestmentGoal(e.target.value)} required>
                 <option value="">Primary Investment Goal</option>
                 <option value="capital_growth">Capital Growth</option>
                 <option value="income_generation">Income Generation</option>
